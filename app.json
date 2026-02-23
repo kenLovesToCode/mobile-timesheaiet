@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "timeshAIt",
-    "slug": "timeshAIt",
+    "name": "priceTag",
+    "slug": "priceTag",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

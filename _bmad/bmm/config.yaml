@@ -3,7 +3,7 @@
 # Version: 6.0.2
 # Date: 2026-02-23T06:04:15.231Z
 
-project_name: timeshAIt
+project_name: priceTag
 user_skill_level: intermediate
 planning_artifacts: "{project-root}/_bmad-output/planning-artifacts"
 implementation_artifacts: "{project-root}/_bmad-output/implementation-artifacts"
