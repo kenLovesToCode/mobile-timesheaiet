@@ -156,6 +156,10 @@ So that the project builds reliably and supports future features.
 **When** I run the standard scripts (lint/build/start)
 **Then** they complete without setup-related failures
 
+**Given** the project uses Tamagui
+**When** I run the app
+**Then** the Tamagui configuration is set up and the app renders without theme/config errors
+
 ### Story 1.2: Local Database Setup (SQLite + Drizzle + Zod)
 
 As a developer,
@@ -292,6 +296,10 @@ So that missing or incorrect prices are fixed immediately.
 **When** I return to Results
 **Then** the store row updates immediately with the new price
 
+**Given** I save a price
+**When** the save completes
+**Then** Results reflects the updated row within 0.5 seconds (P95)
+
 **Given** a store already has a price
 **When** I choose to edit it
 **Then** I can update the price and see Results update immediately
@@ -331,6 +339,14 @@ So that scanning works in real aisle conditions.
 **Given** I open the Scan screen
 **When** I point the camera at a UPC/EAN barcode
 **Then** the app detects the barcode and proceeds to Results
+
+**Given** the app is opened
+**When** I reach the Scan screen
+**Then** it is ready within 2.0s warm start and 4.0s cold start (P95)
+
+**Given** a scan succeeds
+**When** the barcode is captured
+**Then** Results appears in under 3.0s (P95)
 
 **Given** a scan succeeds
 **When** the barcode is captured
@@ -443,6 +459,10 @@ So that I can track shopping progress.
 **Given** I open the Shopping List
 **When** I view all items
 **Then** I see each item with quantity and checked status
+
+**Given** I open the Shopping List
+**When** the list loads
+**Then** it is visible within 1.0s (P95)
 
 **Given** a list item exists
 **When** I toggle its checked state
