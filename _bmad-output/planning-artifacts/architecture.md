@@ -11,13 +11,13 @@ stepsCompleted:
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/ux-design-specification.md
-workflowType: 'architecture'
+workflowType: "architecture"
 lastStep: 8
-status: 'complete'
-completedAt: '2026-02-24T03:02:01Z'
-project_name: 'priceTag'
-user_name: 'ken'
-date: '2026-02-24T02:04:56Z'
+status: "complete"
+completedAt: "2026-02-24T03:02:01Z"
+project_name: "priceTag"
+user_name: "ken"
+date: "2026-02-24T02:04:56Z"
 ---
 
 # Architecture Decision Document
@@ -30,6 +30,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 
 **Functional Requirements:**
 32 FRs across:
+
 - Store management (create/edit/toggle active; gate scanning until ≥1 active store)
 - Scanning & barcode input (UPC/EAN scan, haptics, torch, 5s fallback to manual/recent scans)
 - Results & multi-store compare (active store rows, price vs missing, add missing)
@@ -39,12 +40,14 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 - Error/empty states (camera denied path, no recent scans state)
 
 **Non-Functional Requirements:**
+
 - Performance: P95 app open→scan, scan→results, save→update, list open targets
 - Reliability/durability: local data persistence; unsaved form loss acceptable
 - Usability: one-handed, no dead ends
 - Privacy/security: local-only; no accounts; OS security only
 
 **Scale & Complexity:**
+
 - Primary domain: mobile app (offline-first)
 - Complexity level: low–medium
 - Estimated architectural components: 6–8 (UI/screens, scanning/permissions, local data layer, domain services, state management, theming/UX system, storage/recent scans/list)
@@ -73,16 +76,19 @@ Mobile app (iOS/Android) based on Expo + React Native, offline-first
 ### Starter Options Considered
 
 **Tamagui Expo Router template**
+
 - Command: `yarn create tamagui@latest --template expo-router`
 - Tamagui + Expo Router starter based on the Expo starter repo
-- Requires Yarn 4.4+ (per Tamagui guide)
+- Requires Yarn 4.1+ (per Tamagui guide)
 
 **Expo default**
+
 - Command: `npx create-expo-app@latest`
 - Default template includes Expo Router and TypeScript
 - Clean baseline; add Tamagui manually
 
 **Expo Local-First Template**
+
 - Command: `bunx create-expo-app --template https://github.com/expo-starter/expo-local-first-template`
 - Includes Expo Router, TypeScript, SQLite, Drizzle, NativeWind/Tailwind, Zustand, and more
 - Feature-rich but mismatched with Tamagui choice
@@ -116,7 +122,7 @@ Not prescribed by starter; choose later if needed.
 Expo Router file-based navigation structure.
 
 **Development Experience:**
-Yarn 4.4+ required for the Tamagui template.
+Yarn 4.1+ required for the Tamagui template.
 
 **Note:** Project initialization using this command should be the first implementation story.
 
@@ -127,12 +133,14 @@ Yarn 4.4+ required for the Tamagui template.
 **Database:** SQLite (Expo SQLite driver) as the single source of truth for all offline-first entities (stores, products, prices, recent scans, shopping list).
 
 **ORM:** Drizzle ORM with Expo SQLite driver.
+
 - Version: Use latest stable at implementation time; Drizzle docs for Expo SQLite show installing `drizzle-orm` alongside `expo-sqlite@next`.
 - Driver: `drizzle-orm/expo-sqlite` with `expo-sqlite@next`.
 
 **Migrations:** Auto-run on app start (versioned migrations bundled in app).
 
 **Validation:** Zod for schema validation.
+
 - Version: `zod@^4.0.0`.
 
 **Caching:** No additional cache layer; UI queries SQLite directly.
@@ -190,16 +198,19 @@ Yarn 4.4+ required for the Tamagui template.
 ### Naming Patterns
 
 **Database Naming Conventions:**
+
 - Tables: `snake_case` plural (e.g., `stores`, `shopping_list_items`)
 - Columns: `snake_case` (e.g., `store_id`, `created_at`)
 - Foreign keys: `{table}_id` (e.g., `store_id`, `product_id`)
 - Indexes: `idx_{table}_{column}` (e.g., `idx_prices_store_id`)
 
 **API Naming Conventions:**
+
 - JSON fields: `camelCase`
 - Route params: `{id}` (Expo Router file naming implied)
 
 **Code Naming Conventions:**
+
 - Files: `kebab-case` (e.g., `store-row.tsx`, `shopping-list-item.tsx`)
 - Components: `PascalCase` (e.g., `StoreRow`, `ShoppingListItem`)
 - Functions/variables: `camelCase`
@@ -207,26 +218,32 @@ Yarn 4.4+ required for the Tamagui template.
 ### Structure Patterns
 
 **Project Organization:**
+
 - Components organized by type (e.g., `src/components/ui`, `src/components/layout`)
 - Screens in `src/screens` (or Expo Router `app/` with co-located screen components)
 
 **Tests:**
+
 - Co-located `*.test.ts(x)` next to source files
 
 ### Format Patterns
 
 **Dates:**
+
 - ISO 8601 strings in UI and JSON
 
 **Booleans:**
+
 - `true/false`
 
 ### Process Patterns
 
 **Loading States:**
+
 - Per-screen local state (no global loading store)
 
 **Error Handling:**
+
 - Centralized `AppError` with user-facing message mapping
 
 ## Project Structure & Boundaries
@@ -332,11 +349,13 @@ Naming, structure, and process rules are clear.
 ### Gap Analysis Results
 
 **Important Gaps:**
+
 - Backup/export format and location not specified (e.g., `.sqlite` file + share sheet flow).
 - React Query is listed but no online sync in MVP; clarify if included now or deferred.
 - Drizzle migration tooling not explicitly defined (drizzle-kit + schema location).
 
 **Nice-to-Have Gaps:**
+
 - Remove/clarify top-level `tests/` folder if tests are strictly co-located.
 
 ### Validation Issues Addressed
