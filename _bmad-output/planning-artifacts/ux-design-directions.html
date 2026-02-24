@@ -1,0 +1,1399 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>priceTag — UX Design Directions</title>
+    <style>
+      :root {
+        --bg: #f2f7f3;
+        --surface: #ffffff;
+        --text: #1c1c1e;
+        --muted: #6d6d72;
+        --border: #d1d6d1;
+        --accent: #34c759;
+        --danger: #ff3b30;
+        --warning: #ffcc00;
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        --radius-lg: 16px;
+        --radius-md: 12px;
+        --radius-sm: 10px;
+        --space-1: 4px;
+        --space-2: 8px;
+        --space-3: 12px;
+        --space-4: 16px;
+        --space-5: 24px;
+        --space-6: 32px;
+        --font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      }
+      [data-theme="dark"] {
+        --bg: #000000;
+        --surface: #1c1c1e;
+        --text: #ffffff;
+        --muted: #a1a1a6;
+        --border: #2c2c2e;
+        --accent: #34c759;
+        --danger: #ff453a;
+        --warning: #ffd60a;
+        --shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font);
+        line-height: 1.35;
+      }
+      a {
+        color: inherit;
+      }
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        backdrop-filter: saturate(180%) blur(18px);
+        background: color-mix(in srgb, var(--bg) 80%, transparent);
+        border-bottom: 1px solid var(--border);
+      }
+      .topbar-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--space-4);
+        display: flex;
+        gap: var(--space-3);
+        align-items: center;
+        justify-content: space-between;
+      }
+      .title {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .title h1 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      .title p {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .controls {
+        display: flex;
+        gap: var(--space-2);
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .segmented {
+        display: inline-flex;
+        padding: 2px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--surface) 80%, transparent);
+        gap: 2px;
+      }
+      .segmented button {
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        padding: 8px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .segmented button[aria-pressed="true"] {
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      }
+      .btn {
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--text);
+        padding: 8px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .btn.primary {
+        border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+        background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+      }
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--space-5) var(--space-4) var(--space-6);
+        display: grid;
+        gap: var(--space-5);
+      }
+      .hint {
+        padding: var(--space-4);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow);
+      }
+      .hint h2 {
+        margin: 0 0 var(--space-2) 0;
+        font-size: 14px;
+        font-weight: 650;
+      }
+      .hint ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .direction {
+        padding: var(--space-5);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        box-shadow: var(--shadow);
+        display: none;
+      }
+      .direction.active {
+        display: block;
+      }
+      .direction header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
+      }
+      .direction h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .direction p {
+        margin: var(--space-1) 0 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        max-width: 72ch;
+      }
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .tag .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--space-4);
+      }
+      @media (max-width: 1020px) {
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 560px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .phone {
+        border: 1px solid var(--border);
+        border-radius: 26px;
+        background: color-mix(in srgb, var(--bg) 55%, var(--surface));
+        padding: 14px;
+        position: relative;
+      }
+      .phone::before {
+        content: "";
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 36%;
+        height: 18px;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+        background: color-mix(in srgb, var(--surface) 90%, transparent);
+      }
+      .screen {
+        margin-top: 20px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        overflow: hidden;
+        min-height: 380px;
+        display: flex;
+        flex-direction: column;
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 14px 10px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      .nav .left,
+      .nav .right {
+        width: 60px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .nav .center {
+        text-align: center;
+        font-size: 13px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      .content {
+        padding: 14px;
+        display: grid;
+        gap: var(--space-3);
+      }
+      .hero {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+        padding: 12px;
+        display: grid;
+        gap: 6px;
+      }
+      .hero .kicker {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .hero .headline {
+        font-size: 16px;
+        font-weight: 720;
+        letter-spacing: -0.02em;
+      }
+      .hero .sub {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .row {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        background: var(--surface);
+      }
+      .row .lhs {
+        display: grid;
+        gap: 2px;
+      }
+      .row .title {
+        font-size: 13px;
+        font-weight: 650;
+      }
+      .row .meta {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .row .rhs {
+        display: grid;
+        justify-items: end;
+        gap: 2px;
+      }
+      .price {
+        font-size: 14px;
+        font-weight: 750;
+        letter-spacing: -0.01em;
+      }
+      .pill {
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .pill.accent {
+        border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+        background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+        color: var(--text);
+      }
+      .missing {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .ctaRow {
+        display: flex;
+        gap: var(--space-2);
+      }
+      .cta {
+        flex: 1;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 10px 12px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 650;
+        background: var(--surface);
+      }
+      .cta.primary {
+        border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+        background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+      }
+      .camera {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        height: 200px;
+        background: radial-gradient(
+            120% 140% at 30% 20%,
+            color-mix(in srgb, var(--accent) 16%, transparent) 0%,
+            transparent 55%
+          ),
+          linear-gradient(
+            140deg,
+            color-mix(in srgb, var(--text) 10%, transparent) 0%,
+            transparent 60%
+          ),
+          color-mix(in srgb, var(--surface) 80%, var(--bg));
+        position: relative;
+        overflow: hidden;
+      }
+      .camera .guide {
+        position: absolute;
+        inset: 18px;
+        border-radius: 14px;
+        border: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+      }
+      .camera .hint {
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        padding: 10px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: color-mix(in srgb, var(--surface) 86%, transparent);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .camera .hint strong {
+        color: var(--text);
+        font-weight: 650;
+      }
+      .subtle {
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .sectionLabel {
+        margin: 0;
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 2px 0;
+      }
+      .dense .content {
+        padding: 12px;
+        gap: 10px;
+      }
+      .dense .row {
+        padding: 8px 10px;
+      }
+      .airy .content {
+        padding: 18px;
+        gap: 14px;
+      }
+      .airybars .nav {
+        padding-top: 18px;
+        padding-bottom: 12px;
+      }
+    </style>
+  </head>
+  <body data-theme="light">
+    <div class="topbar">
+      <div class="topbar-inner">
+        <div class="title">
+          <h1>priceTag — Design Directions</h1>
+          <p>Calm / minimal • Grocery Green • Camera-first with fast form fallback</p>
+        </div>
+        <div class="controls">
+          <div class="segmented" role="group" aria-label="Design direction">
+            <button type="button" data-direction="d1" aria-pressed="true">1</button>
+            <button type="button" data-direction="d2" aria-pressed="false">2</button>
+            <button type="button" data-direction="d3" aria-pressed="false">3</button>
+            <button type="button" data-direction="d4" aria-pressed="false">4</button>
+            <button type="button" data-direction="d5" aria-pressed="false">5</button>
+            <button type="button" data-direction="d6" aria-pressed="false">6</button>
+            <button type="button" data-direction="d7" aria-pressed="false">7</button>
+            <button type="button" data-direction="d8" aria-pressed="false">8</button>
+          </div>
+          <button class="btn primary" type="button" id="themeToggle">Toggle Dark</button>
+          <button class="btn" type="button" id="showAll">Show All</button>
+        </div>
+      </div>
+    </div>
+
+    <main>
+      <section class="hint">
+        <h2>How to evaluate</h2>
+        <ul>
+          <li>Scan feels calm and never “stuck” (fallback is obvious around ~5s).</li>
+          <li>Results reduce doubt: product name is prominent, barcode + timestamp are visible but secondary.</li>
+          <li>Missing is actionable (quiet state, clear CTA) and saving updates instantly.</li>
+          <li>Choose a direction or mix elements across directions.</li>
+        </ul>
+      </section>
+
+      <!-- Direction 1 -->
+      <section class="direction active" id="d1" data-direction="d1">
+        <header>
+          <div>
+            <h3>Direction 1 — Airy cards (calm, premium)</h3>
+            <p>Best for: calm confidence. Uses generous whitespace and card surfaces; ideal for “boom, answer” without noise.</p>
+          </div>
+          <div class="tag"><span class="dot"></span>Airy • Card-based</div>
+        </header>
+        <div class="grid airy">
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Stores</div>
+                <div class="center">Scan</div>
+                <div class="right">Torch</div>
+              </div>
+              <div class="content">
+                <div class="camera">
+                  <div class="guide"></div>
+                  <div class="hint"><span><strong>Hold steady</strong> • Tilt slightly</span><span class="pill">0:03</span></div>
+                </div>
+                <div class="ctaRow">
+                  <div class="cta">Recent</div>
+                  <div class="cta primary">Enter barcode</div>
+                </div>
+                <p class="subtle">If scanning struggles, use manual entry. It’s normal—barcodes can be damaged.</p>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">Results</div>
+                <div class="right">•••</div>
+              </div>
+              <div class="content">
+                <div class="hero">
+                  <div class="kicker">Product</div>
+                  <div class="headline">Ketchup 500g</div>
+                  <div class="sub">Barcode 012345678905 • Last scan just now</div>
+                </div>
+                <p class="sectionLabel">Active stores</p>
+                <div class="row">
+                  <div class="lhs">
+                    <div class="title">Abreeza</div>
+                    <div class="meta">Captured 2d ago</div>
+                  </div>
+                  <div class="rhs">
+                    <div class="price">₱159</div>
+                    <div class="pill accent">Cheapest</div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="lhs">
+                    <div class="title">Gaisano Citygate</div>
+                    <div class="meta">Captured 9d ago</div>
+                  </div>
+                  <div class="rhs"><div class="price">₱169</div><div class="pill">Stale</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs">
+                    <div class="title">NCCC Choice Mart</div>
+                    <div class="meta">No price yet</div>
+                  </div>
+                  <div class="rhs"><div class="missing">Missing</div><div class="pill accent">Add price</div></div>
+                </div>
+                <div class="ctaRow">
+                  <div class="cta primary">Add to list</div>
+                  <div class="cta">Edit name</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Cancel</div>
+                <div class="center">Add Price</div>
+                <div class="right">Save</div>
+              </div>
+              <div class="content">
+                <div class="hero">
+                  <div class="kicker">Store</div>
+                  <div class="headline">NCCC Choice Mart</div>
+                  <div class="sub">Ketchup 500g • 012345678905</div>
+                </div>
+                <div class="row">
+                  <div class="lhs">
+                    <div class="title">Price</div>
+                    <div class="meta">Required</div>
+                  </div>
+                  <div class="rhs"><div class="price">₱</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs">
+                    <div class="title">Captured</div>
+                    <div class="meta">Auto</div>
+                  </div>
+                  <div class="rhs"><div class="pill">Now</div></div>
+                </div>
+                <p class="subtle">Save updates Results instantly (offline).</p>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Scan</div>
+                <div class="center">Shopping List</div>
+                <div class="right">Edit</div>
+              </div>
+              <div class="content">
+                <p class="sectionLabel">Today</p>
+                <div class="row">
+                  <div class="lhs"><div class="title">Ketchup 500g</div><div class="meta">012345678905</div></div>
+                  <div class="rhs"><div class="pill accent">Qty 2</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Milk 1L</div><div class="meta">098765432109</div></div>
+                  <div class="rhs"><div class="pill">Qty 1</div></div>
+                </div>
+                <div class="divider"></div>
+                <p class="subtle">Tap an item to check it off. Duplicates increment quantity.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Direction 2 -->
+      <section class="direction" id="d2" data-direction="d2">
+        <header>
+          <div>
+            <h3>Direction 2 — Compact list (fast scanning, less scrolling)</h3>
+            <p>Best for: speed. Uses denser rows while keeping a calm palette; ideal if you want maximum information per glance.</p>
+          </div>
+          <div class="tag"><span class="dot"></span>Compact • List-first</div>
+        </header>
+        <div class="grid dense">
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Stores</div>
+                <div class="center">Scan</div>
+                <div class="right">Torch</div>
+              </div>
+              <div class="content">
+                <div class="camera">
+                  <div class="guide"></div>
+                  <div class="hint"><span><strong>Scanning…</strong> center barcode</span><span class="pill">0:05</span></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Fallback</div><div class="meta">Manual entry + recent scans</div></div>
+                  <div class="rhs"><div class="pill accent">Open</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">Results</div>
+                <div class="right">List</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Ketchup 500g</div><div class="meta">012345678905</div></div>
+                  <div class="rhs"><div class="pill">Just now</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Abreeza</div><div class="meta">2d ago</div></div>
+                  <div class="rhs"><div class="price">₱159</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Gaisano Citygate</div><div class="meta">9d ago</div></div>
+                  <div class="rhs"><div class="price">₱169</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">No price</div></div>
+                  <div class="rhs"><div class="pill accent">Add price</div></div>
+                </div>
+                <div class="ctaRow">
+                  <div class="cta primary">Add to list</div>
+                  <div class="cta">Edit name</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Cancel</div>
+                <div class="center">Enter Barcode</div>
+                <div class="right">Go</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Barcode</div><div class="meta">UPC / EAN</div></div>
+                  <div class="rhs"><div class="pill">••••••</div></div>
+                </div>
+                <p class="sectionLabel">Recent</p>
+                <div class="row">
+                  <div class="lhs"><div class="title">012345678905</div><div class="meta">Ketchup 500g</div></div>
+                  <div class="rhs"><div class="pill accent">Use</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">098765432109</div><div class="meta">Milk 1L</div></div>
+                  <div class="rhs"><div class="pill">Use</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">Stores</div>
+                <div class="right">Add</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Abreeza</div><div class="meta">Active</div></div>
+                  <div class="rhs"><div class="pill accent">On</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">Active</div></div>
+                  <div class="rhs"><div class="pill accent">On</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Gaisano Mall</div><div class="meta">Inactive</div></div>
+                  <div class="rhs"><div class="pill">Off</div></div>
+                </div>
+                <p class="subtle">Scanning is blocked until ≥1 store is active.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Direction 3 -->
+      <section class="direction" id="d3" data-direction="d3">
+        <header>
+          <div>
+            <h3>Direction 3 — Bottom sheet actions (minimal results, fast capture)</h3>
+            <p>Best for: one-handed action. Keeps Results calm; “Add Price / Add to List” live in a sheet for quick reach.</p>
+          </div>
+          <div class="tag"><span class="dot"></span>Sheet-first • One-handed</div>
+        </header>
+        <div class="grid airy">
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Stores</div>
+                <div class="center">Scan</div>
+                <div class="right">Torch</div>
+              </div>
+              <div class="content">
+                <div class="camera">
+                  <div class="guide"></div>
+                  <div class="hint"><span><strong>Try tilt</strong> • Reduce glare</span><span class="pill">0:04</span></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Can’t scan?</div><div class="meta">Enter barcode</div></div>
+                  <div class="rhs"><div class="pill accent">Open</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">Results</div>
+                <div class="right">•••</div>
+              </div>
+              <div class="content">
+                <div class="hero">
+                  <div class="kicker">Product</div>
+                  <div class="headline">Ketchup 500g</div>
+                  <div class="sub">012345678905</div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Abreeza</div><div class="meta">2d ago</div></div>
+                  <div class="rhs"><div class="price">₱159</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">No price</div></div>
+                  <div class="rhs"><div class="missing">Missing</div></div>
+                </div>
+                <div class="hero" style="padding: 10px; margin-top: 6px">
+                  <div class="kicker">Quick actions</div>
+                  <div class="ctaRow">
+                    <div class="cta primary">Add price</div>
+                    <div class="cta">Add to list</div>
+                  </div>
+                </div>
+                <p class="subtle">Actions anchored near the bottom for one-handed reach.</p>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Cancel</div>
+                <div class="center">Add Price</div>
+                <div class="right">Save</div>
+              </div>
+              <div class="content">
+                <p class="sectionLabel">Item</p>
+                <div class="row">
+                  <div class="lhs"><div class="title">Ketchup 500g</div><div class="meta">012345678905</div></div>
+                  <div class="rhs"><div class="pill">Edit</div></div>
+                </div>
+                <p class="sectionLabel">Store</p>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">Active store</div></div>
+                  <div class="rhs"><div class="pill accent">Selected</div></div>
+                </div>
+                <p class="sectionLabel">Price</p>
+                <div class="row">
+                  <div class="lhs"><div class="title">₱</div><div class="meta">Required</div></div>
+                  <div class="rhs"><div class="pill">Keyboard</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Scan</div>
+                <div class="center">List</div>
+                <div class="right">•••</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Ketchup 500g</div><div class="meta">Qty 2</div></div>
+                  <div class="rhs"><div class="pill accent">In cart</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Milk 1L</div><div class="meta">Qty 1</div></div>
+                  <div class="rhs"><div class="pill">—</div></div>
+                </div>
+                <p class="subtle">Simple list with calm states; no extra noise.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Direction 4 -->
+      <section class="direction" id="d4" data-direction="d4">
+        <header>
+          <div>
+            <h3>Direction 4 — “Cheapest” highlight (decision-forward)</h3>
+            <p>Best for: comparison clarity. Adds subtle emphasis to cheapest and “current store” while staying minimal.</p>
+          </div>
+          <div class="tag"><span class="dot"></span>Compare-first • Subtle emphasis</div>
+        </header>
+        <div class="grid airy">
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Stores</div>
+                <div class="center">Scan</div>
+                <div class="right">Torch</div>
+              </div>
+              <div class="content">
+                <div class="camera">
+                  <div class="guide"></div>
+                  <div class="hint"><span><strong>Scanning…</strong> align barcode</span><span class="pill">0:02</span></div>
+                </div>
+                <div class="hero">
+                  <div class="kicker">Goal</div>
+                  <div class="headline">Boom → prices</div>
+                  <div class="sub">Calm, quick, confident.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">Results</div>
+                <div class="right">List</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Ketchup 500g</div><div class="meta">012345678905 • just now</div></div>
+                  <div class="rhs"><div class="pill">Compare</div></div>
+                </div>
+                <p class="sectionLabel">Cheapest today</p>
+                <div class="hero">
+                  <div class="kicker">Abreeza</div>
+                  <div class="headline">₱159</div>
+                  <div class="sub">Captured 2d ago</div>
+                </div>
+                <p class="sectionLabel">All active stores</p>
+                <div class="row">
+                  <div class="lhs"><div class="title">Abreeza</div><div class="meta">2d ago</div></div>
+                  <div class="rhs"><div class="pill accent">Cheapest</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">No price</div></div>
+                  <div class="rhs"><div class="pill accent">Add price</div></div>
+                </div>
+                <div class="ctaRow">
+                  <div class="cta primary">Add to list</div>
+                  <div class="cta">Add price</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Cancel</div>
+                <div class="center">Add Price</div>
+                <div class="right">Save</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Store</div><div class="meta">Choose one</div></div>
+                  <div class="rhs"><div class="pill accent">Abreeza</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Price</div><div class="meta">Required</div></div>
+                  <div class="rhs"><div class="price">₱</div></div>
+                </div>
+                <p class="subtle">Save is always visible; reduces uncertainty.</p>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">List</div>
+                <div class="right">Edit</div>
+              </div>
+              <div class="content">
+                <div class="hero">
+                  <div class="kicker">Estimated total (optional)</div>
+                  <div class="headline">₱428</div>
+                  <div class="sub">Based on last known prices</div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Ketchup 500g</div><div class="meta">Qty 2</div></div>
+                  <div class="rhs"><div class="pill accent">₱318</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Milk 1L</div><div class="meta">Qty 1</div></div>
+                  <div class="rhs"><div class="pill">₱110</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Direction 5 -->
+      <section class="direction" id="d5" data-direction="d5">
+        <header>
+          <div>
+            <h3>Direction 5 — Ultra minimal (one primary CTA)</h3>
+            <p>Best for: maximum calm. Fewer actions shown at once; relies on context menus for secondary actions.</p>
+          </div>
+          <div class="tag"><span class="dot"></span>Ultra-minimal • One CTA</div>
+        </header>
+        <div class="grid airy airybars">
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Stores</div>
+                <div class="center">Scan</div>
+                <div class="right">Torch</div>
+              </div>
+              <div class="content">
+                <div class="camera">
+                  <div class="guide"></div>
+                  <div class="hint"><span><strong>Hold steady</strong></span><span class="pill">0:04</span></div>
+                </div>
+                <div class="cta primary">Enter barcode</div>
+                <p class="subtle">Recent scans appear after you open manual entry.</p>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">Results</div>
+                <div class="right">•••</div>
+              </div>
+              <div class="content">
+                <div class="hero">
+                  <div class="kicker">Product</div>
+                  <div class="headline">Ketchup 500g</div>
+                  <div class="sub">012345678905</div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Abreeza</div><div class="meta">2d ago</div></div>
+                  <div class="rhs"><div class="price">₱159</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">No price</div></div>
+                  <div class="rhs"><div class="missing">Missing</div></div>
+                </div>
+                <div class="cta primary">Add to list</div>
+                <p class="subtle">Add price is shown when you tap a Missing store row.</p>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Cancel</div>
+                <div class="center">Store</div>
+                <div class="right">Next</div>
+              </div>
+              <div class="content">
+                <p class="sectionLabel">Choose store</p>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">Active</div></div>
+                  <div class="rhs"><div class="pill accent">Select</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Gaisano Citygate</div><div class="meta">Active</div></div>
+                  <div class="rhs"><div class="pill">Select</div></div>
+                </div>
+                <p class="subtle">Step-by-step reduces overload, increases calm.</p>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">List</div>
+                <div class="right">•••</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Ketchup 500g</div><div class="meta">Qty 2</div></div>
+                  <div class="rhs"><div class="pill accent">✓</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Milk 1L</div><div class="meta">Qty 1</div></div>
+                  <div class="rhs"><div class="pill">✓</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Direction 6 -->
+      <section class="direction" id="d6" data-direction="d6">
+        <header>
+          <div>
+            <h3>Direction 6 — “Confidence first” (identity + recency)</h3>
+            <p>Best for: reducing doubt. Makes product name/barcode/timestamp more explicit, still minimal.</p>
+          </div>
+          <div class="tag"><span class="dot"></span>Trust-first • Identity cues</div>
+        </header>
+        <div class="grid airy">
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Stores</div>
+                <div class="center">Scan</div>
+                <div class="right">Torch</div>
+              </div>
+              <div class="content">
+                <div class="camera">
+                  <div class="guide"></div>
+                  <div class="hint"><span><strong>Align barcode</strong> • Calm mode</span><span class="pill">0:05</span></div>
+                </div>
+                <div class="hero">
+                  <div class="kicker">If scan fails</div>
+                  <div class="headline">Barcode may be damaged</div>
+                  <div class="sub">Use manual entry. No problem.</div>
+                </div>
+                <div class="cta primary">Enter barcode</div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">Results</div>
+                <div class="right">Edit</div>
+              </div>
+              <div class="content">
+                <div class="hero">
+                  <div class="kicker">Recognized</div>
+                  <div class="headline">Ketchup 500g</div>
+                  <div class="sub">012345678905 • Captured today</div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Abreeza</div><div class="meta">Captured 2d ago</div></div>
+                  <div class="rhs"><div class="price">₱159</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">No price yet</div></div>
+                  <div class="rhs"><div class="pill accent">Add price</div></div>
+                </div>
+                <div class="hero">
+                  <div class="kicker">Trust cues</div>
+                  <div class="sub">Always show product name first, barcode second, timestamp third.</div>
+                </div>
+                <div class="ctaRow">
+                  <div class="cta primary">Add to list</div>
+                  <div class="cta">Edit name</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Cancel</div>
+                <div class="center">Edit Name</div>
+                <div class="right">Save</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Name</div><div class="meta">Shown on Results</div></div>
+                  <div class="rhs"><div class="pill accent">Ketchup 500g</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Barcode</div><div class="meta">Read-only</div></div>
+                  <div class="rhs"><div class="pill">012345678905</div></div>
+                </div>
+                <p class="subtle">Reduces “wrong item” doubt with explicit identity.</p>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">List</div>
+                <div class="right">Edit</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Ketchup 500g</div><div class="meta">012345678905</div></div>
+                  <div class="rhs"><div class="pill accent">Qty 2</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Milk 1L</div><div class="meta">098765432109</div></div>
+                  <div class="rhs"><div class="pill">Qty 1</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Direction 7 -->
+      <section class="direction" id="d7" data-direction="d7">
+        <header>
+          <div>
+            <h3>Direction 7 — Store-first results (for “price here”)</h3>
+            <p>Best for: in-store usage. Surfaces “current store” at top with a clear answer, then comparison below.</p>
+          </div>
+          <div class="tag"><span class="dot"></span>In-store • “Price here” first</div>
+        </header>
+        <div class="grid airy">
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Stores</div>
+                <div class="center">Scan</div>
+                <div class="right">Torch</div>
+              </div>
+              <div class="content">
+                <div class="camera">
+                  <div class="guide"></div>
+                  <div class="hint"><span><strong>Scanning…</strong></span><span class="pill">0:03</span></div>
+                </div>
+                <div class="hero">
+                  <div class="kicker">Current store</div>
+                  <div class="headline">Abreeza</div>
+                  <div class="sub">Used to pin “price here” on Results</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">Results</div>
+                <div class="right">•••</div>
+              </div>
+              <div class="content">
+                <div class="hero">
+                  <div class="kicker">Product</div>
+                  <div class="headline">Ketchup 500g</div>
+                  <div class="sub">012345678905</div>
+                </div>
+                <p class="sectionLabel">Price here (Abreeza)</p>
+                <div class="row">
+                  <div class="lhs"><div class="title">Abreeza</div><div class="meta">Captured 2d ago</div></div>
+                  <div class="rhs"><div class="price">₱159</div><div class="pill">Edit</div></div>
+                </div>
+                <p class="sectionLabel">Compare</p>
+                <div class="row">
+                  <div class="lhs"><div class="title">Gaisano Citygate</div><div class="meta">9d ago</div></div>
+                  <div class="rhs"><div class="price">₱169</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">No price</div></div>
+                  <div class="rhs"><div class="pill accent">Add price</div></div>
+                </div>
+                <div class="cta primary">Add to list</div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Cancel</div>
+                <div class="center">Set Current Store</div>
+                <div class="right">Done</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Abreeza</div><div class="meta">Nearby / frequent</div></div>
+                  <div class="rhs"><div class="pill accent">Selected</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">Active</div></div>
+                  <div class="rhs"><div class="pill">Select</div></div>
+                </div>
+                <p class="subtle">Optional, but strengthens “price here” clarity.</p>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Scan</div>
+                <div class="center">List</div>
+                <div class="right">Edit</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Ketchup 500g</div><div class="meta">Qty 2</div></div>
+                  <div class="rhs"><div class="pill accent">✓</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Milk 1L</div><div class="meta">Qty 1</div></div>
+                  <div class="rhs"><div class="pill">✓</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Direction 8 -->
+      <section class="direction" id="d8" data-direction="d8">
+        <header>
+          <div>
+            <h3>Direction 8 — Action bar (thumb reach, fewer decisions)</h3>
+            <p>Best for: one-handed speed. Uses a persistent action bar on Results (Add price / Add to list), minimal secondary UI.</p>
+          </div>
+          <div class="tag"><span class="dot"></span>Thumb bar • Persistent actions</div>
+        </header>
+        <div class="grid airy">
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Stores</div>
+                <div class="center">Scan</div>
+                <div class="right">Torch</div>
+              </div>
+              <div class="content">
+                <div class="camera">
+                  <div class="guide"></div>
+                  <div class="hint"><span><strong>Scanning…</strong> keep centered</span><span class="pill">0:05</span></div>
+                </div>
+                <div class="hero">
+                  <div class="kicker">Fallback</div>
+                  <div class="sub">Always one tap away.</div>
+                </div>
+                <div class="ctaRow">
+                  <div class="cta primary">Enter barcode</div>
+                  <div class="cta">Recent</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen" style="position: relative">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">Results</div>
+                <div class="right">•••</div>
+              </div>
+              <div class="content" style="padding-bottom: 64px">
+                <div class="hero">
+                  <div class="kicker">Product</div>
+                  <div class="headline">Ketchup 500g</div>
+                  <div class="sub">012345678905 • just now</div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Abreeza</div><div class="meta">2d ago</div></div>
+                  <div class="rhs"><div class="price">₱159</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">NCCC Choice Mart</div><div class="meta">No price</div></div>
+                  <div class="rhs"><div class="missing">Missing</div></div>
+                </div>
+                <p class="subtle">Actions are always available at the bottom.</p>
+              </div>
+              <div
+                style="
+                  position: absolute;
+                  left: 10px;
+                  right: 10px;
+                  bottom: 10px;
+                  border-radius: 999px;
+                  border: 1px solid var(--border);
+                  background: color-mix(in srgb, var(--surface) 90%, transparent);
+                  padding: 8px;
+                  display: flex;
+                  gap: 8px;
+                "
+              >
+                <div class="cta primary" style="padding: 10px 12px">Add price</div>
+                <div class="cta" style="padding: 10px 12px">Add to list</div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Cancel</div>
+                <div class="center">Add Price</div>
+                <div class="right">Save</div>
+              </div>
+              <div class="content">
+                <div class="hero">
+                  <div class="kicker">Store</div>
+                  <div class="headline">NCCC Choice Mart</div>
+                  <div class="sub">Ketchup 500g</div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Price</div><div class="meta">Required</div></div>
+                  <div class="rhs"><div class="price">₱</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Captured</div><div class="meta">Auto</div></div>
+                  <div class="rhs"><div class="pill">Now</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="nav">
+                <div class="left">Back</div>
+                <div class="center">List</div>
+                <div class="right">Edit</div>
+              </div>
+              <div class="content">
+                <div class="row">
+                  <div class="lhs"><div class="title">Ketchup 500g</div><div class="meta">Qty 2</div></div>
+                  <div class="rhs"><div class="pill accent">✓</div></div>
+                </div>
+                <div class="row">
+                  <div class="lhs"><div class="title">Milk 1L</div><div class="meta">Qty 1</div></div>
+                  <div class="rhs"><div class="pill">✓</div></div>
+                </div>
+                <p class="subtle">Still minimal; list stays “quiet”.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const root = document.body;
+      const toggle = document.getElementById("themeToggle");
+      const showAll = document.getElementById("showAll");
+      const segButtons = Array.from(document.querySelectorAll(".segmented button[data-direction]"));
+      const sections = Array.from(document.querySelectorAll(".direction[data-direction]"));
+
+      function setTheme(next) {
+        root.setAttribute("data-theme", next);
+        toggle.textContent = next === "dark" ? "Toggle Light" : "Toggle Dark";
+      }
+
+      function setActiveDirection(id) {
+        sections.forEach((s) => s.classList.toggle("active", s.dataset.direction === id));
+        segButtons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.direction === id)));
+      }
+
+      function showAllDirections() {
+        sections.forEach((s) => s.classList.add("active"));
+        segButtons.forEach((b) => b.setAttribute("aria-pressed", "false"));
+      }
+
+      toggle.addEventListener("click", () => {
+        const current = root.getAttribute("data-theme") || "light";
+        setTheme(current === "dark" ? "light" : "dark");
+      });
+
+      showAll.addEventListener("click", () => showAllDirections());
+
+      segButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          setActiveDirection(btn.dataset.direction);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      });
+
+      setTheme("light");
+      setActiveDirection("d1");
+    </script>
+  </body>
+</html>
