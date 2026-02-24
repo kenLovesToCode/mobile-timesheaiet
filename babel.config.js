@@ -4,6 +4,12 @@ module.exports = function (api) {
     presets: ['babel-preset-expo'],
     plugins: [
       [
+        'babel-plugin-inline-import',
+        {
+          extensions: ['.sql'],
+        },
+      ],
+      [
         '@tamagui/babel-plugin',
         {
           components: ['tamagui'],
