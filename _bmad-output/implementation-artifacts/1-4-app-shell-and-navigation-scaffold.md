@@ -1,6 +1,6 @@
 # Story 1.4: App Shell and Navigation Scaffold
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -18,25 +18,34 @@ so that core screens can be accessed in a consistent structure.
 
 ## Tasks / Subtasks
 
-- [ ] Establish root navigation shell in `app/_layout.tsx` with Expo Router `Stack` and shared providers (AC: 1, 2, 3)
-  - [ ] Keep `AppTamaguiProvider` and `DatabaseBootstrapGate` mounted at root layout scope
-  - [ ] Configure stack-level options for consistent header behavior and route titles for placeholder screens
-  - [ ] Ensure route registration does not require manual `component` wiring (Expo Router file-based mapping)
-- [ ] Add placeholder route files for primary shell screens using file-based routing (AC: 1, 2)
-  - [ ] Create placeholder routes for `stores`, `scan`, `results`, `add-price`, and `shopping-list`
-  - [ ] Keep route components thin and delegate shared UI primitives to `src/` where needed
-  - [ ] Ensure all placeholder screens render without runtime errors on iOS/Android/web
-- [ ] Implement safe-area-compliant base screen scaffold for placeholder pages (AC: 3)
-  - [ ] Use React Native safe-area patterns consistently so header/content spacing is correct on notched devices
-  - [ ] Keep one-handed usability and tap target constraints in mind for future stories
-- [ ] Wire initial navigation entry points from home placeholder without adding business logic (AC: 1, 2)
-  - [ ] Provide simple links/buttons to validate route transitions among primary routes
-  - [ ] Keep existing dev smoke route behavior isolated and non-disruptive
-- [ ] Validate shell quality and capture implementation evidence (AC: 1, 2, 3)
-  - [ ] Run `npm run typecheck`
-  - [ ] Run `npm run lint`
-  - [ ] Run `npm run build`
-  - [ ] Record changed files, validation output summary, and any route-level caveats in `Dev Agent Record`
+- [x] Establish root navigation shell in `app/_layout.tsx` with Expo Router `Stack` and shared providers (AC: 1, 2, 3)
+  - [x] Keep `AppTamaguiProvider` and `DatabaseBootstrapGate` mounted at root layout scope
+  - [x] Configure stack-level options for consistent header behavior and route titles for placeholder screens
+  - [x] Ensure route registration does not require manual `component` wiring (Expo Router file-based mapping)
+- [x] Add placeholder route files for primary shell screens using file-based routing (AC: 1, 2)
+  - [x] Create placeholder routes for `stores`, `scan`, `results`, `add-price`, and `shopping-list`
+  - [x] Keep route components thin and delegate shared UI primitives to `src/` where needed
+  - [x] Ensure all placeholder screens render without runtime errors on iOS/Android/web
+- [x] Implement safe-area-compliant base screen scaffold for placeholder pages (AC: 3)
+  - [x] Use React Native safe-area patterns consistently so header/content spacing is correct on notched devices
+  - [x] Keep one-handed usability and tap target constraints in mind for future stories
+- [x] Wire initial navigation entry points from home placeholder without adding business logic (AC: 1, 2)
+  - [x] Provide simple links/buttons to validate route transitions among primary routes
+  - [x] Keep existing dev smoke route behavior isolated and non-disruptive
+- [x] Validate shell quality and capture implementation evidence (AC: 1, 2, 3)
+  - [x] Run `npm run typecheck`
+  - [x] Run `npm run lint`
+  - [x] Run `npm run build`
+  - [x] Record changed files, validation output summary, and any route-level caveats in `Dev Agent Record`
+
+### Review Follow-ups (AI)
+
+- [x] [AI-Review][HIGH] Wrap home route content in a safe-area-compliant scaffold so AC3 applies consistently to `index` as well as placeholder routes. [app/index.tsx:15]
+- [x] [AI-Review][HIGH] Add shared `Stack` `screenOptions` for consistent stack-level header behavior (not just per-screen titles). [app/_layout.tsx:10]
+- [x] [AI-Review][MEDIUM] Gate `dev/device-smoke` route registration to dev builds so it is not reachable in production via direct navigation/deep links. [app/_layout.tsx:17]
+- [x] [AI-Review][HIGH] Include `top` in safe-area edges for the shared placeholder scaffold so AC3 does not depend on stack header behavior. [src/components/shell/placeholder-screen.tsx:12]
+- [x] [AI-Review][MEDIUM] Conditionally register `dev/device-smoke` only in dev builds instead of relying on runtime redirect. [app/_layout.tsx:22]
+- [x] [AI-Review][MEDIUM] Replace text-only navigation links on home with touch targets that satisfy 44x44 tap-area intent. [app/index.tsx:27]
 
 ## Dev Notes
 
@@ -168,21 +177,62 @@ GPT-5 Codex
 - 2026-02-25: Identified next backlog item from sprint status as `1-4-app-shell-and-navigation-scaffold`.
 - 2026-02-25: Loaded and analyzed epics, PRD, architecture, UX spec, prior story context (`1-3`), current repo structure, and recent git history.
 - 2026-02-25: Added up-to-date Expo Router/Tamagui technical references for scaffold guardrails.
+- 2026-02-25: Implemented Expo Router stack scaffold with placeholder route options and preserved root provider composition.
+- 2026-02-25: Added placeholder routes (`stores`, `scan`, `results`, `add-price`, `shopping-list`) backed by shared safe-area scaffold component.
+- 2026-02-25: Updated home placeholder with navigation entry links while keeping `app/dev/device-smoke.tsx` isolated and dev-only.
+- 2026-02-25: Validation run completed - `npm run typecheck`, `npm run lint`, and `npm run build` all passing.
+- 2026-02-25: Addressed review follow-ups in app shell and home route, then re-ran required validations successfully.
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
-- Story status is set to `ready-for-dev`.
-- Story provides explicit shell-only scope boundaries to prevent premature feature implementation.
-- Story includes architecture-aligned file targets and testing gates for implementation quality.
-- Sprint tracking is updated to move Story 1.4 from backlog to ready-for-dev.
+- Added root stack options for primary routes and retained `AppTamaguiProvider` + `DatabaseBootstrapGate` at root scope.
+- Added scaffold route files for `stores`, `scan`, `results`, `add-price`, and `shopping-list` with no business logic.
+- Introduced `src/components/shell/placeholder-screen.tsx` with `SafeAreaView` + scroll scaffold for consistent base layout spacing.
+- Updated `app/index.tsx` with primary route links for transition verification, while preserving dev-only smoke route behavior.
+- Updated `tsconfig.json` to exclude `dist` so TypeScript checks ignore generated export artifacts.
+- Validation evidence: `npm run typecheck` (pass), `npm run lint` (pass), `npm run build` (pass).
+- Caveat: Expo build emits existing Tamagui zeego setup warning unrelated to Story 1.4 scaffold changes.
+- Testing scope note: No dedicated unit/integration test harness is configured in this repo yet; validation for this scaffold story relies on required type/lint/build quality gates and route runtime sanity checks.
+- ✅ Resolved review finding [HIGH]: wrapped `app/index.tsx` content in safe-area scaffold to align AC3 with placeholder routes.
+- ✅ Resolved review finding [HIGH]: added shared root `Stack` `screenOptions` for consistent stack-level header behavior.
+- ✅ Resolved review finding [MEDIUM]: gated `dev/device-smoke` route registration with `redirect={!__DEV__}` in root stack.
+- ✅ Resolved review finding [HIGH]: added `top` safe-area edge to shared placeholder scaffold for stable cross-device spacing.
+- ✅ Resolved review finding [MEDIUM]: switched `dev/device-smoke` registration to dev-only conditional stack entry.
+- ✅ Resolved review finding [MEDIUM]: replaced text-only home links with 44x44+ pressable touch targets.
+- Re-ran quality gates after review fixes: `npm run typecheck` (pass), `npm run lint` (pass), `npm run build` (pass).
 
 ### File List
 
-- `/Users/kenlovestocode/Desktop/Me/ai/pricetag/_bmad-output/implementation-artifacts/1-4-app-shell-and-navigation-scaffold.md`
-- `/Users/kenlovestocode/Desktop/Me/ai/pricetag/_bmad-output/implementation-artifacts/sprint-status.yaml`
+- app/_layout.tsx
+- app/index.tsx
+- app/stores.tsx
+- app/scan.tsx
+- app/results.tsx
+- app/add-price.tsx
+- app/shopping-list.tsx
+- src/components/shell/placeholder-screen.tsx
+- tsconfig.json
+- _bmad-output/implementation-artifacts/1-4-app-shell-and-navigation-scaffold.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+
+### Change Log
+
+- 2026-02-25: Implemented Story 1.4 app shell + primary route scaffold, added safe-area placeholder component, and passed required quality gates.
+- 2026-02-25: Senior developer code review completed; 3 follow-up action items added (2 HIGH, 1 MEDIUM).
+- 2026-02-25: Addressed code review findings - 3 items resolved (2 HIGH, 1 MEDIUM); quality gates passing.
+- 2026-02-25: Follow-up code review found 3 additional action items (1 HIGH, 2 MEDIUM); story returned to in-progress.
+- 2026-02-25: Addressed follow-up review findings - 3 items resolved (1 HIGH, 2 MEDIUM); quality gates passing; story moved to review.
+
+### Senior Developer Review (AI)
+
+- Outcome: Changes Requested
+- Summary: Found three implementation gaps requiring follow-up before story completion.
+- Findings:
+  - [HIGH] Shared placeholder scaffold omits top safe-area edge, making AC3 brittle when header behavior changes.
+  - [MEDIUM] `dev/device-smoke` remains registered in production stack and is only runtime-redirected.
+  - [MEDIUM] Home route navigation links are text-only and do not satisfy 44x44 touch-target intent.
 
 ## Completion Status
 
-- Status set to: ready-for-dev
-- Completion note: Ultimate context engine analysis completed - comprehensive developer guide created.
+- Status set to: review
+- Completion note: All AI-review follow-up tasks are complete and validations are passing; ready for code review.
