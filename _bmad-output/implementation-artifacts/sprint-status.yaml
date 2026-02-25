@@ -43,8 +43,8 @@ development_status:
   epic-1: in-progress
   1-1-base-app-initialization-and-configuration: done
   1-2-local-database-setup-sqlite-drizzle-zod: done
-  1-3-core-packages-and-permissions-setup: backlog
-  1-4-app-shell-and-navigation-scaffold: backlog
+  1-3-core-packages-and-permissions-setup: done
+  1-4-app-shell-and-navigation-scaffold: ready-for-dev
   1-5-ui-system-setup-theme-tokens-base-components: backlog
   epic-1-retrospective: optional
 

@@ -20,6 +20,8 @@
     "@tamagui/native": "2.0.0-rc.17",
     "drizzle-orm": "^0.45.1",
     "expo": "55.0.0-preview.12",
+    "expo-camera": "~55.0.7",
+    "expo-haptics": "~55.0.7",
     "expo-linking": "~55.0.6",
     "expo-router": "55.0.0-preview.9",
     "expo-sqlite": "~55.0.8",

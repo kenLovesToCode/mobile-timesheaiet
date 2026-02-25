@@ -30,7 +30,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow PriceTag to use your camera to scan product barcodes.",
+          "recordAudioAndroid": false
+        }
+      ]
     ]
   }
 }
