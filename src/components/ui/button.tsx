@@ -1,5 +1,5 @@
 import type { PropsWithChildren, ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import { radii, spacing, touchTargets } from '../../theme/tokens';
@@ -73,7 +73,7 @@ export function getButtonContainerStyle({
   disabled,
   backgroundColor,
   borderColor,
-}: ButtonContainerStyleOptions) {
+}: ButtonContainerStyleOptions): StyleProp<ViewStyle> {
   return [
     styles.base,
     {
@@ -82,7 +82,7 @@ export function getButtonContainerStyle({
       opacity: disabled ? 0.5 : pressed ? 0.88 : 1,
       transform: [{ scale: pressed ? 0.99 : 1 }],
     },
-  ] as const;
+  ];
 }
 
 const styles = StyleSheet.create({

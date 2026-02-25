@@ -87,6 +87,14 @@ jest.mock('../src/dev/device-smoke-screen', () => {
   };
 });
 
+jest.mock('../src/db/repositories/store-repository', () => ({
+  listStores: jest.fn().mockResolvedValue([]),
+  createStore: jest.fn(),
+  updateStoreName: jest.fn(),
+  toggleStoreActive: jest.fn(),
+  getActiveStoreCount: jest.fn().mockResolvedValue(0),
+}));
+
 const routerTesting = require('expo-router/testing-library');
 const { renderRouter, testRouter } = routerTesting;
 const { __mockSafeAreaViewPropsLog } = require('react-native-safe-area-context');
@@ -153,13 +161,13 @@ describe('Story 1.4 app shell navigation scaffold', () => {
           'Open Stores',
           '/stores',
           'Stores',
-          'Manage active store context and switch between saved stores.',
+          'Add stores you shop at and mark at least one as active before scanning.',
         ],
         [
           'Open Scan',
           '/scan',
           'Scan',
-          'Scan product barcodes and capture price details for the active store.',
+          'Scan entry stays feature-driven while camera permissions and capture flow land in later stories.',
         ],
         [
           'Open Results',

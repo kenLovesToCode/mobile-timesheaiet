@@ -49,7 +49,7 @@ development_status:
   epic-1-retrospective: done
 
   epic-2: in-progress
-  2-1-store-setup-and-active-gating: backlog
+  2-1-store-setup-and-active-gating: done
   2-2-add-or-edit-price-and-product-info: backlog
   2-3-results-view-for-active-stores: backlog
   2-4-scan-flow-with-haptics-and-torch: backlog

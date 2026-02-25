@@ -1,10 +1,5 @@
-import { PlaceholderScreen } from '../src/components/shell/placeholder-screen';
+import { ScanFeatureScreen } from '../src/features/scan/scan-screen';
 
 export default function ScanScreen() {
-  return (
-    <PlaceholderScreen
-      title="Scan"
-      description="Scan product barcodes and capture price details for the active store."
-    />
-  );
+  return <ScanFeatureScreen />;
 }
