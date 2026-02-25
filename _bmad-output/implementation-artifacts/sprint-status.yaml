@@ -45,7 +45,7 @@ development_status:
   1-2-local-database-setup-sqlite-drizzle-zod: done
   1-3-core-packages-and-permissions-setup: done
   1-4-app-shell-and-navigation-scaffold: done
-  1-5-ui-system-setup-theme-tokens-base-components: ready-for-dev
+  1-5-ui-system-setup-theme-tokens-base-components: done
   epic-1-retrospective: optional
 
   epic-2: backlog

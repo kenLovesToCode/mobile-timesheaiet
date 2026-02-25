@@ -29,6 +29,9 @@ jest.mock('tamagui', () => {
   const ViewStub = ({ children, ...props }) => React.createElement(View, props, children);
 
   return {
+    createTokens: (tokens) => tokens,
+    createFont: (font) => font,
+    createTamagui: (cfg) => cfg,
     H1: TextStub,
     H2: TextStub,
     Paragraph: TextStub,
@@ -36,7 +39,20 @@ jest.mock('tamagui', () => {
     TamaguiProvider: ViewStub,
     Theme: ViewStub,
     useTheme: () => ({
+      background: { val: '#f2f7f3' },
+      backgroundHover: { val: '#eaf3ec' },
       borderColor: { val: '#cccccc' },
+      color: { val: '#1c1c1e' },
+      placeholderColor: { val: '#6d6d72' },
+      surface: { val: '#ffffff' },
+      textPrimary: { val: '#1c1c1e' },
+      textSecondary: { val: '#6d6d72' },
+      accentBackground: { val: '#34c759' },
+      accentBorderColor: { val: '#34c759' },
+      accentColor: { val: '#ffffff' },
+      danger: { val: '#ff3b30' },
+      warning: { val: '#ffcc00' },
+      shadowColor: { val: '#00000022' },
     }),
   };
 });
