@@ -53,8 +53,8 @@ development_status:
   2-2-add-or-edit-price-and-product-info: done
   2-3-results-view-for-active-stores: done
   2-4-scan-flow-with-haptics-and-torch: done
-  2-5-fallback-to-manual-entry-and-recent-scans: ready-for-dev
-  2-6-permission-denied-and-empty-state-handling: backlog
+  2-5-fallback-to-manual-entry-and-recent-scans: done
+  2-6-permission-denied-and-empty-state-handling: review
   2-7-non-blocking-flow-behavior: backlog
   epic-2-retrospective: optional
 

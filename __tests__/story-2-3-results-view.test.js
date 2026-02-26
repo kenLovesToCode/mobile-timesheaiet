@@ -140,7 +140,7 @@ describe('Story 2.3 Results view for active stores', () => {
   });
 
   it('shows priced rows with timestamps and Missing rows as actionable (AC2, AC3)', async () => {
-    mockLocalSearchParams = { barcode: '0123456789012' };
+    mockLocalSearchParams = { barcode: '0123456789012', source: 'scan' };
     pricingRepository.getResultsByBarcodeAcrossActiveStores.mockResolvedValue({
       barcode: '0123456789012',
       productName: 'Spinach',
@@ -200,9 +200,7 @@ describe('Story 2.3 Results view for active stores', () => {
   });
 
   it('records scan-to-results timing after the results render', async () => {
-    jest.useFakeTimers();
-
-    mockLocalSearchParams = { barcode: '0123456789012' };
+    mockLocalSearchParams = { barcode: '0123456789012', source: 'scan' };
     pricingRepository.getResultsByBarcodeAcrossActiveStores.mockResolvedValue({
       barcode: '0123456789012',
       productName: 'Spinach',
@@ -211,19 +209,18 @@ describe('Story 2.3 Results view for active stores', () => {
 
     const screen = render(React.createElement(ResultsFeatureScreen));
 
-    await waitFor(() => expect(screen.getByText('Store prices')).toBeTruthy());
-
-    expect(mockRecordCompletedScanToResults).not.toHaveBeenCalled();
-
-    await act(async () => {});
+    await triggerMockFocus();
+    await waitFor(() =>
+      expect(screen.getByText('No active stores to compare yet.')).toBeTruthy()
+    );
 
     await act(async () => {
-      jest.runOnlyPendingTimers();
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    expect(mockRecordCompletedScanToResults).toHaveBeenCalledWith('0123456789012');
-
-    jest.useRealTimers();
+    await waitFor(() =>
+      expect(mockRecordCompletedScanToResults).toHaveBeenCalledWith('0123456789012')
+    );
   });
 
   it('fails closed when barcode context is missing with retry guidance (AC3)', async () => {

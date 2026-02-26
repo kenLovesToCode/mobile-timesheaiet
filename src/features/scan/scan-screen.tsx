@@ -7,8 +7,14 @@ import { useTheme } from 'tamagui';
 
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { ListRow } from '../../components/ui/list-row';
 import { Surface } from '../../components/ui/surface';
 import { Text } from '../../components/ui/text';
+import {
+  listRecentScans,
+  recordRecentScan,
+  type RecentScanRecord,
+} from '../../db/repositories/recent-scans-repository';
 import { getActiveStoreCount } from '../../db/repositories/store-repository';
 import { spacing } from '../../theme/tokens';
 import {
@@ -40,6 +46,11 @@ type CameraPermissionState =
   | { status: 'unavailable'; snapshot: CameraPermissionSnapshot }
   | { status: 'error' };
 
+type RecentScansState = 'idle' | 'loading' | 'ready' | 'error';
+
+const FALLBACK_DELAY_MS = 5000;
+const RECENT_SCANS_LIMIT = 5;
+
 function mapPermissionSnapshot(snapshot: CameraPermissionSnapshot): CameraPermissionState {
   if (!snapshot.isAvailable) {
     return { status: 'unavailable', snapshot };
@@ -67,13 +78,25 @@ export function ScanFeatureScreen() {
   const [torchEnabled, setTorchEnabled] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [manualEntryValue, setManualEntryValue] = useState('');
+  const [fallbackVisible, setFallbackVisible] = useState(false);
+  const [manualEntryOpen, setManualEntryOpen] = useState(false);
+  const [recentScansState, setRecentScansState] = useState<RecentScansState>('idle');
+  const [recentScans, setRecentScans] = useState<RecentScanRecord[]>([]);
+  const isActiveRef = useRef(false);
   const scanReadyStartRef = useRef<number | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const permissionFallbackActive =
+    permissionState.status === 'denied' || permissionState.status === 'unavailable';
 
   const loadGateState = useCallback(async () => {
     setGateState({ status: 'loading' });
 
     try {
       const activeStoreCount = await getActiveStoreCount();
+
+      if (!isActiveRef.current) {
+        return;
+      }
 
       if (activeStoreCount < 1) {
         setGateState({ status: 'blocked' });
@@ -92,9 +115,15 @@ export function ScanFeatureScreen() {
 
     try {
       const snapshot = await getCameraPermissionSnapshot();
+      if (!isActiveRef.current) {
+        return;
+      }
       setPermissionState(mapPermissionSnapshot(snapshot));
     } catch (error) {
       console.error('[scan] Failed to load camera permission status', error);
+      if (!isActiveRef.current) {
+        return;
+      }
       setPermissionState({ status: 'error' });
     }
   }, []);
@@ -104,25 +133,68 @@ export function ScanFeatureScreen() {
 
     try {
       const snapshot = await requestCameraPermissionSnapshot();
+      if (!isActiveRef.current) {
+        return;
+      }
       setPermissionState(mapPermissionSnapshot(snapshot));
     } catch (error) {
       console.error('[scan] Failed to request camera permission', error);
+      if (!isActiveRef.current) {
+        return;
+      }
       setPermissionState({ status: 'error' });
+    }
+  }, []);
+
+  const clearFallbackTimer = useCallback(() => {
+    if (fallbackTimerRef.current != null) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+  }, []);
+
+  const resetFallbackState = useCallback(() => {
+    clearFallbackTimer();
+    setFallbackVisible(false);
+    setManualEntryOpen(false);
+  }, [clearFallbackTimer]);
+
+  const loadRecentScans = useCallback(async () => {
+    setRecentScansState('loading');
+
+    try {
+      const scans = await listRecentScans(RECENT_SCANS_LIMIT);
+      if (!isActiveRef.current) {
+        return;
+      }
+      setRecentScans(scans);
+      setRecentScansState('ready');
+    } catch (error) {
+      console.error('[scan] Failed to load recent scans', error);
+      if (!isActiveRef.current) {
+        return;
+      }
+      setRecentScans([]);
+      setRecentScansState('error');
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
+      isActiveRef.current = true;
       setIsFocused(true);
       void loadGateState();
       void loadPermissionState();
 
       return () => {
+        isActiveRef.current = false;
         setIsFocused(false);
         setCameraReady(false);
+        setManualEntryValue('');
         scanReadyStartRef.current = null;
+        resetFallbackState();
       };
-    }, [loadGateState, loadPermissionState])
+    }, [loadGateState, loadPermissionState, resetFallbackState])
   );
 
   const canMountCamera =
@@ -131,13 +203,57 @@ export function ScanFeatureScreen() {
   useEffect(() => {
     if (!canMountCamera) {
       setCameraReady(false);
+      if (!permissionFallbackActive) {
+        resetFallbackState();
+      }
       return;
     }
 
     if (scanReadyStartRef.current == null) {
       scanReadyStartRef.current = startScanReadyMeasurement();
     }
-  }, [canMountCamera]);
+  }, [canMountCamera, resetFallbackState]);
+
+  useEffect(() => {
+    if (!isFocused || !canMountCamera || !cameraReady) {
+      if (!permissionFallbackActive) {
+        resetFallbackState();
+      }
+      return;
+    }
+
+    if (fallbackVisible || fallbackTimerRef.current != null) {
+      return;
+    }
+
+    fallbackTimerRef.current = setTimeout(() => {
+      fallbackTimerRef.current = null;
+      setFallbackVisible(true);
+      void loadRecentScans();
+    }, FALLBACK_DELAY_MS);
+
+    return () => {
+      clearFallbackTimer();
+    };
+  }, [
+    cameraReady,
+    canMountCamera,
+    clearFallbackTimer,
+    fallbackVisible,
+    isFocused,
+    loadRecentScans,
+    permissionFallbackActive,
+    resetFallbackState,
+  ]);
+
+  useEffect(() => {
+    if (!isFocused || gateState.status !== 'ready' || !permissionFallbackActive) {
+      return;
+    }
+
+    setFallbackVisible(true);
+    void loadRecentScans();
+  }, [gateState.status, isFocused, loadRecentScans, permissionFallbackActive]);
 
   const storeSummary = useMemo(() => {
     if (gateState.status !== 'ready') {
@@ -158,13 +274,21 @@ export function ScanFeatureScreen() {
       }
 
       markPendingScanToResults(barcode);
+      resetFallbackState();
+      setManualEntryValue('');
+      const recordPromise = recordRecentScan({ barcode, source: 'scan' });
+      if (recordPromise && typeof recordPromise.catch === 'function') {
+        void recordPromise.catch((error) => {
+          console.error('[scan] Failed to record recent scan', error);
+        });
+      }
       void triggerScanHaptics();
       router.push({
         pathname: '/results',
         params: { barcode, source: 'scan' },
       });
     },
-    [router]
+    [resetFallbackState, router]
   );
 
   const manualEntryBarcode = useMemo(
@@ -178,6 +302,9 @@ export function ScanFeatureScreen() {
     }
 
     discardPendingScanToResults(manualEntryBarcode);
+    setManualEntryOpen(false);
+    setFallbackVisible(false);
+    setManualEntryValue('');
     router.push({
       pathname: '/results',
       params: { barcode: manualEntryBarcode },
@@ -191,6 +318,173 @@ export function ScanFeatureScreen() {
       scanReadyStartRef.current = null;
     }
   }, []);
+
+  const recentScanSubtitle = useCallback((scannedAt: number) => {
+    const date = new Date(scannedAt);
+    return `Scanned ${date.toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })}`;
+  }, []);
+
+  const handleRecentScanPress = useCallback(
+    (barcode: string) => {
+      discardPendingScanToResults(barcode);
+      setManualEntryOpen(false);
+      setFallbackVisible(false);
+      setManualEntryValue('');
+      router.push({
+        pathname: '/results',
+        params: { barcode },
+      });
+    },
+    [router]
+  );
+
+  const shouldShowFallback = fallbackVisible || permissionFallbackActive;
+  const fallbackCopy = useMemo(() => {
+    if (permissionState.status === 'denied') {
+      return {
+        title: 'Use manual entry or recent scans',
+        description:
+          'Camera access is denied right now. You can still look up items below.',
+      };
+    }
+
+    if (permissionState.status === 'unavailable') {
+      return {
+        title: 'Use manual entry or recent scans',
+        description:
+          'Camera access is unavailable on this device. You can still look up items below.',
+      };
+    }
+
+    return {
+      title: 'Need a quick fallback?',
+      description: 'You can keep scanning, or choose a fast manual option below.',
+    };
+  }, [permissionState.status]);
+
+  const fallbackSurface = shouldShowFallback ? (
+    <Surface variant="subtle" style={styles.fallbackShell}>
+      <Text variant="headline">{fallbackCopy.title}</Text>
+      <Text variant="footnote" tone="secondary">
+        {fallbackCopy.description}
+      </Text>
+
+      <View style={styles.fallbackActions}>
+        <Button
+          variant="secondary"
+          accessibilityLabel="Enter barcode manually"
+          onPress={() => setManualEntryOpen(true)}
+          testID="scan-fallback-manual-entry"
+        >
+          Manual entry
+        </Button>
+      </View>
+
+      {manualEntryOpen ? (
+        <View style={styles.manualEntrySheet}>
+          <Text variant="headline">Enter a barcode</Text>
+          <Input
+            label="Barcode"
+            value={manualEntryValue}
+            onChangeText={setManualEntryValue}
+            autoCapitalize="none"
+            keyboardType="number-pad"
+            helperText={
+              manualEntryValue.length > 0 && !manualEntryBarcode
+                ? 'Enter a UPC/EAN barcode (8, 12, or 13 digits).'
+                : 'Digits only, we will format it for you.'
+            }
+            testID="scan-fallback-manual-input"
+          />
+          <View style={styles.manualEntryActions}>
+            <Button
+              variant="secondary"
+              accessibilityLabel="Cancel manual entry"
+              onPress={() => setManualEntryOpen(false)}
+              testID="scan-fallback-manual-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              accessibilityLabel="View results from manual entry"
+              disabled={!manualEntryBarcode}
+              onPress={handleManualEntrySubmit}
+              testID="scan-fallback-manual-submit"
+            >
+              View Results
+            </Button>
+          </View>
+        </View>
+      ) : null}
+
+      <View style={styles.recentScansHeader}>
+        <Text variant="headline">Recent scans</Text>
+        <Button
+          variant="secondary"
+          accessibilityLabel="Refresh recent scans"
+          onPress={() => void loadRecentScans()}
+          testID="scan-recent-scans-refresh"
+        >
+          Refresh
+        </Button>
+      </View>
+
+      {recentScansState === 'loading' ? (
+        <View style={styles.centerState}>
+          <ActivityIndicator accessibilityRole="progressbar" />
+          <Text variant="footnote" tone="secondary">
+            Loading recent scans...
+          </Text>
+        </View>
+      ) : null}
+
+      {recentScansState === 'error' ? (
+        <View style={styles.centerState}>
+          <Text variant="footnote" tone="secondary">
+            Recent scans are unavailable right now.
+          </Text>
+        </View>
+      ) : null}
+
+      {recentScansState === 'ready' && recentScans.length === 0 ? (
+        <View style={styles.centerState} testID="scan-recent-scans-empty">
+          <Text variant="body">No recent scans yet.</Text>
+          <Text variant="footnote" tone="secondary">
+            Scan something to see it here.
+          </Text>
+          <Button
+            variant="secondary"
+            accessibilityLabel="Enter a barcode manually"
+            onPress={() => setManualEntryOpen(true)}
+            testID="scan-recent-scans-empty-manual-entry"
+          >
+            Manual entry
+          </Button>
+        </View>
+      ) : null}
+
+      {recentScansState === 'ready' && recentScans.length > 0 ? (
+        <View style={styles.recentScansList}>
+          {recentScans.map((scan) => (
+            <ListRow
+              key={scan.id}
+              title={scan.barcode}
+              subtitle={recentScanSubtitle(scan.scannedAt)}
+              stateLabel="Use"
+              tone="secondary"
+              onPress={() => handleRecentScanPress(scan.barcode)}
+              testID={`scan-recent-scan-${scan.id}`}
+            />
+          ))}
+        </View>
+      ) : null}
+    </Surface>
+  ) : null;
 
   return (
     <SafeAreaView
@@ -282,66 +576,15 @@ export function ScanFeatureScreen() {
 
               {permissionState.status === 'denied' ? (
                 <View style={styles.stack}>
-                  <Text variant="body" tone="danger">
-                    Camera access is denied
-                  </Text>
-                  <Text variant="footnote" tone="secondary">
-                    You can enter a barcode manually below to continue.
-                  </Text>
-                  <Input
-                    label="Manual barcode"
-                    value={manualEntryValue}
-                    onChangeText={setManualEntryValue}
-                    autoCapitalize="none"
-                    keyboardType="number-pad"
-                    helperText={
-                      manualEntryValue.length > 0 && !manualEntryBarcode
-                        ? 'Enter a UPC/EAN barcode (8, 12, or 13 digits).'
-                        : 'Enter the barcode printed below the lines.'
-                    }
-                    testID="scan-manual-entry-input"
-                  />
-                  <Button
-                    variant="secondary"
-                    accessibilityLabel="View results from manual entry"
-                    accessibilityState={{ disabled: !manualEntryBarcode }}
-                    disabled={!manualEntryBarcode}
-                    onPress={handleManualEntrySubmit}
-                    testID="scan-manual-entry-submit"
-                  >
-                    View Results
-                  </Button>
+                  <Text variant="body">Camera access is denied.</Text>
+                  {fallbackSurface}
                 </View>
               ) : null}
 
               {permissionState.status === 'unavailable' ? (
                 <View style={styles.stack}>
-                  <Text variant="body" tone="danger">
-                    Camera is unavailable on this device
-                  </Text>
-                  <Input
-                    label="Manual barcode"
-                    value={manualEntryValue}
-                    onChangeText={setManualEntryValue}
-                    autoCapitalize="none"
-                    keyboardType="number-pad"
-                    helperText={
-                      manualEntryValue.length > 0 && !manualEntryBarcode
-                        ? 'Enter a UPC/EAN barcode (8, 12, or 13 digits).'
-                        : 'Enter the barcode printed below the lines.'
-                    }
-                    testID="scan-manual-entry-input"
-                  />
-                  <Button
-                    variant="secondary"
-                    accessibilityLabel="View results from manual entry"
-                    accessibilityState={{ disabled: !manualEntryBarcode }}
-                    disabled={!manualEntryBarcode}
-                    onPress={handleManualEntrySubmit}
-                    testID="scan-manual-entry-submit"
-                  >
-                    View Results
-                  </Button>
+                  <Text variant="body">Camera is unavailable on this device.</Text>
+                  {fallbackSurface}
                 </View>
               ) : null}
 
@@ -409,6 +652,10 @@ export function ScanFeatureScreen() {
                       Keep the barcode centered for the fastest scan.
                     </Text>
                   </View>
+
+                  {fallbackVisible ? (
+                    fallbackSurface
+                  ) : null}
                 </View>
               ) : null}
             </View>
@@ -459,6 +706,31 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   controlsRow: {
+    gap: spacing.sm,
+  },
+  fallbackShell: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  fallbackActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  manualEntrySheet: {
+    gap: spacing.sm,
+  },
+  manualEntryActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  recentScansHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  recentScansList: {
     gap: spacing.sm,
   },
 });

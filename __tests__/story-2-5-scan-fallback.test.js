@@ -107,7 +107,6 @@ jest.mock('../src/features/scan/scan-haptics', () => ({
 const storeRepository = require('../src/db/repositories/store-repository');
 const recentScansRepository = require('../src/db/repositories/recent-scans-repository');
 const cameraPermission = require('../src/features/scan/permissions/camera-permission');
-const scanHaptics = require('../src/features/scan/scan-haptics');
 const { ScanFeatureScreen } = require('../src/features/scan/scan-screen');
 
 async function triggerMockFocus() {
@@ -129,139 +128,150 @@ function createPermissionSnapshot(overrides = {}) {
   };
 }
 
-describe('Story 2.4 Scan flow with haptics and torch', () => {
+describe('Story 2.5 Scan fallback and recent scans', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockRouterPush.mockReset();
     mockFocusEffects.clear();
     mockCameraViewProps.current = null;
-    recentScansRepository.listRecentScans.mockResolvedValue([]);
+    jest.useFakeTimers();
   });
 
-  it('renders permission granted state with camera UI (AC1, AC2)', async () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('shows fallback prompt after ~5s once camera is ready (AC1)', async () => {
     storeRepository.getActiveStoreCount.mockResolvedValue(1);
     cameraPermission.getCameraPermissionSnapshot.mockResolvedValue(
       createPermissionSnapshot({ status: 'granted', granted: true })
     );
+    recentScansRepository.listRecentScans.mockResolvedValue([]);
 
     const screen = render(React.createElement(ScanFeatureScreen));
 
-    await waitFor(() => expect(screen.getByText('Scan is ready')).toBeTruthy());
+    await triggerMockFocus();
     await waitFor(() => expect(screen.getByTestId('mock-camera-view')).toBeTruthy());
+
+    await act(async () => {
+      mockCameraViewProps.current.onCameraReady();
+    });
+
+    expect(screen.queryByTestId('scan-fallback-manual-entry')).toBeNull();
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId('scan-fallback-manual-entry')).toBeTruthy()
+    );
   });
 
-  it('shows denied state with manual entry path when permission is blocked (AC5)', async () => {
+  it('validates manual entry and navigates to Results (AC2)', async () => {
     storeRepository.getActiveStoreCount.mockResolvedValue(1);
     cameraPermission.getCameraPermissionSnapshot.mockResolvedValue(
-      createPermissionSnapshot({ status: 'denied', granted: false, canAskAgain: false })
+      createPermissionSnapshot({ status: 'granted', granted: true })
     );
+    recentScansRepository.listRecentScans.mockResolvedValue([]);
 
     const screen = render(React.createElement(ScanFeatureScreen));
 
-    await waitFor(() => expect(screen.getByText('Camera access is denied.')).toBeTruthy());
+    await triggerMockFocus();
+    await waitFor(() => expect(screen.getByTestId('mock-camera-view')).toBeTruthy());
+
+    await act(async () => {
+      mockCameraViewProps.current.onCameraReady();
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
     await waitFor(() =>
       expect(screen.getByTestId('scan-fallback-manual-entry')).toBeTruthy()
     );
 
     fireEvent.press(screen.getByTestId('scan-fallback-manual-entry'));
-    const manualEntryInput = screen.getByTestId('scan-fallback-manual-input');
-    const manualEntrySubmit = screen.getByTestId('scan-fallback-manual-submit');
-    expect(manualEntrySubmit.props.accessibilityState?.disabled).toBe(true);
 
-    fireEvent.changeText(manualEntryInput, '0123456789012');
-    await waitFor(() =>
-      expect(
-        screen.getByTestId('scan-fallback-manual-submit').props.accessibilityState?.disabled
-      ).toBe(false)
-    );
+    const manualInput = screen.getByTestId('scan-fallback-manual-input');
+    const submitButton = screen.getByTestId('scan-fallback-manual-submit');
 
+    fireEvent.press(submitButton);
+    expect(mockRouterPush).not.toHaveBeenCalled();
+
+    fireEvent.changeText(manualInput, 'bad');
+    fireEvent.press(screen.getByTestId('scan-fallback-manual-submit'));
+    expect(mockRouterPush).not.toHaveBeenCalled();
+
+    fireEvent.changeText(manualInput, '0123456789012');
     fireEvent.press(screen.getByTestId('scan-fallback-manual-submit'));
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/results',
       params: { barcode: '0123456789012' },
     });
+
+    await waitFor(() =>
+      expect(screen.queryByTestId('scan-fallback-manual-input')).toBeNull()
+    );
   });
 
-  it('shows an error state when permission lookup fails (AC5)', async () => {
-    storeRepository.getActiveStoreCount.mockResolvedValue(1);
-    cameraPermission.getCameraPermissionSnapshot.mockRejectedValue(new Error('boom'));
-
-    const screen = render(React.createElement(ScanFeatureScreen));
-
-    await waitFor(() => expect(screen.getByText('Camera status unavailable')).toBeTruthy());
-    expect(screen.getByTestId('scan-permission-retry-button')).toBeTruthy();
-  });
-
-  it('navigates on first barcode scan and latches duplicates (AC1, AC3, AC4)', async () => {
+  it('records recent scans on successful scan (AC4)', async () => {
     storeRepository.getActiveStoreCount.mockResolvedValue(1);
     cameraPermission.getCameraPermissionSnapshot.mockResolvedValue(
       createPermissionSnapshot({ status: 'granted', granted: true })
     );
+    recentScansRepository.listRecentScans.mockResolvedValue([]);
 
     const screen = render(React.createElement(ScanFeatureScreen));
-
-    await waitFor(() => expect(screen.getByTestId('mock-camera-view')).toBeTruthy());
-
-    await act(async () => {
-      mockCameraViewProps.current.onBarcodeScanned({ data: '  0123-4567-89012  ' });
-    });
-
-    expect(mockRouterPush).toHaveBeenCalledWith({
-      pathname: '/results',
-      params: { barcode: '0123456789012', source: 'scan' },
-    });
-    expect(scanHaptics.triggerScanHaptics).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      mockCameraViewProps.current.onBarcodeScanned({ data: 'not-a-barcode' });
-    });
-
-    expect(mockRouterPush).toHaveBeenCalledTimes(1);
-    expect(scanHaptics.triggerScanHaptics).toHaveBeenCalledTimes(1);
 
     await triggerMockFocus();
-  });
-
-  it('does not latch invalid scans before a valid barcode', async () => {
-    storeRepository.getActiveStoreCount.mockResolvedValue(1);
-    cameraPermission.getCameraPermissionSnapshot.mockResolvedValue(
-      createPermissionSnapshot({ status: 'granted', granted: true })
-    );
-
-    const screen = render(React.createElement(ScanFeatureScreen));
-
     await waitFor(() => expect(screen.getByTestId('mock-camera-view')).toBeTruthy());
-
-    await act(async () => {
-      mockCameraViewProps.current.onBarcodeScanned({ data: 'not-a-barcode' });
-    });
-
-    expect(mockRouterPush).not.toHaveBeenCalled();
-    expect(scanHaptics.triggerScanHaptics).not.toHaveBeenCalled();
 
     await act(async () => {
       mockCameraViewProps.current.onBarcodeScanned({ data: '0123456789012' });
     });
 
-    expect(mockRouterPush).toHaveBeenCalledWith({
-      pathname: '/results',
-      params: { barcode: '0123456789012', source: 'scan' },
+    expect(recentScansRepository.recordRecentScan).toHaveBeenCalledWith({
+      barcode: '0123456789012',
+      source: 'scan',
     });
-    expect(scanHaptics.triggerScanHaptics).toHaveBeenCalledTimes(1);
   });
 
-  it('wires torch toggle state into the camera props (AC5)', async () => {
+  it('renders recent scans list ordering and empty state (AC3)', async () => {
     storeRepository.getActiveStoreCount.mockResolvedValue(1);
     cameraPermission.getCameraPermissionSnapshot.mockResolvedValue(
       createPermissionSnapshot({ status: 'granted', granted: true })
     );
 
+    recentScansRepository.listRecentScans.mockResolvedValueOnce([]);
+
     const screen = render(React.createElement(ScanFeatureScreen));
 
+    await triggerMockFocus();
     await waitFor(() => expect(screen.getByTestId('mock-camera-view')).toBeTruthy());
 
-    fireEvent.press(screen.getByTestId('scan-torch-toggle'));
+    await act(async () => {
+      mockCameraViewProps.current.onCameraReady();
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
 
-    await waitFor(() => expect(mockCameraViewProps.current.enableTorch).toBe(true));
+    await waitFor(() =>
+      expect(screen.getByTestId('scan-recent-scans-empty')).toBeTruthy()
+    );
+
+    recentScansRepository.listRecentScans.mockResolvedValueOnce([
+      { id: 9, barcode: '000000000000', scannedAt: 1700000000000, source: 'scan' },
+      { id: 8, barcode: '111111111111', scannedAt: 1690000000000, source: 'scan' },
+    ]);
+
+    fireEvent.press(screen.getByTestId('scan-recent-scans-refresh'));
+
+    await waitFor(() => {
+      const rows = screen.getAllByTestId(/scan-recent-scan-/);
+      expect(rows[0].props.testID).toBe('scan-recent-scan-9');
+      expect(rows[1].props.testID).toBe('scan-recent-scan-8');
+    });
   });
 });
