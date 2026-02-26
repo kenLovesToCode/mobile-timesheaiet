@@ -28,7 +28,7 @@ describe('Story 2.2 pricing repository', () => {
             limit: async () => {
               selectCall += 1;
               if (selectCall === 1) {
-                return [{ id: 9 }];
+                return [{ id: 9, isActive: true }];
               }
 
               if (selectCall === 2) {
@@ -211,7 +211,7 @@ describe('Story 2.2 pricing repository', () => {
               selectCall += 1;
 
               if (selectCall === 1) {
-                return [{ id: 9 }];
+                return [{ id: 9, isActive: true }];
               }
 
               if (selectCall === 2) {
@@ -321,6 +321,7 @@ describe('Story 2.2 pricing repository', () => {
     const { saveStorePrice } = require('../src/db/repositories/pricing-repository');
 
     let selectCall = 0;
+    let productConflictSet;
     const tx = {
       select: jest.fn(() => ({
         from: () => ({
@@ -329,7 +330,7 @@ describe('Story 2.2 pricing repository', () => {
               selectCall += 1;
 
               if (selectCall === 1) {
-                return [{ id: 9 }];
+                return [{ id: 9, isActive: true }];
               }
 
               if (selectCall === 2) {

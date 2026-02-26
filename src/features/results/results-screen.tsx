@@ -69,20 +69,38 @@ export function ResultsFeatureScreen() {
   const isFocusedRef = useRef(false);
   const rowNavigationLatchRef = useRef<{ storeId: number; atMs: number } | null>(null);
 
-  const hasRows = screenState.status === 'ready' && screenState.data.stores.length > 0;
+  const sortedStores = useMemo(() => {
+    if (screenState.status !== 'ready') {
+      return [];
+    }
+
+    return [...screenState.data.stores].sort((a, b) => {
+      const nameComparison = a.storeName.localeCompare(b.storeName);
+      if (nameComparison !== 0) {
+        return nameComparison;
+      }
+      return a.storeId - b.storeId;
+    });
+  }, [screenState]);
+
+  const hasRows = screenState.status === 'ready' && sortedStores.length > 0;
   const productName =
     screenState.status === 'ready' ? screenState.data.productName ?? 'Unknown product' : null;
   const productNameDisplay =
     screenState.status === 'error' ? null : productName ?? 'Loading product...';
+  const identityAccessibilityLabel =
+    screenState.status === 'error'
+      ? undefined
+      : `Product ${productNameDisplay ?? 'Loading product'}, ${barcode ? `barcode ${barcode}` : 'barcode not provided'}`;
 
   const storeCountLabel = useMemo(() => {
     if (screenState.status !== 'ready') {
       return null;
     }
 
-    const count = screenState.data.stores.length;
+    const count = sortedStores.length;
     return `${count} active store${count === 1 ? '' : 's'}`;
-  }, [screenState]);
+  }, [screenState, sortedStores]);
 
   const loadResults = useCallback(async () => {
     if (!barcode) {
@@ -216,7 +234,11 @@ export function ResultsFeatureScreen() {
             <Text variant="footnote" tone="secondary" style={styles.sectionLead}>
               Add a missing store price or edit an existing one for this barcode.
             </Text>
-            <View style={styles.identityStack}>
+            <View
+              accessible
+              accessibilityLabel={identityAccessibilityLabel}
+              style={styles.identityStack}
+            >
               {productNameDisplay ? (
                 <Text variant="headline">{productNameDisplay}</Text>
               ) : null}
@@ -284,6 +306,16 @@ export function ResultsFeatureScreen() {
                 >
                   Retry
                 </Button>
+                {!barcode ? (
+                  <Button
+                    variant="secondary"
+                    accessibilityLabel="Return to Scan"
+                    onPress={() => router.push('/scan')}
+                    testID="results-scan-button"
+                  >
+                    Go to Scan
+                  </Button>
+                ) : null}
               </View>
             ) : null}
 
@@ -306,7 +338,7 @@ export function ResultsFeatureScreen() {
 
             {screenState.status === 'ready' && hasRows ? (
               <View style={styles.listStack}>
-                {screenState.data.stores.map((row) => {
+                {sortedStores.map((row) => {
                   const hasPrice = row.priceCents != null;
 
                   return (
