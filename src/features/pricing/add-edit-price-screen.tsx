@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from 'tamagui';
 
 import { Button } from '../../components/ui/button';
@@ -138,7 +138,7 @@ export function AddEditPriceFeatureScreen() {
     return 'Store and barcode are prefilled from the selected Results row.';
   }, [mode]);
 
-  useEffect(() => {
+  const resetFormState = useCallback(() => {
     setProductName(initialProductName);
     setPriceInput(formatCentsForInput(initialPriceCents));
     setFormError(null);
@@ -152,7 +152,21 @@ export function AddEditPriceFeatureScreen() {
     setIsSaving(false);
     saveInFlightRef.current = false;
     productNameEditedRef.current = false;
-  }, [routeSignature, initialProductName, initialPriceCents, hasValidStoreId]);
+  }, [initialPriceCents, initialProductName, hasValidStoreId]);
+
+  useEffect(() => {
+    resetFormState();
+  }, [resetFormState, routeSignature]);
+
+  useFocusEffect(
+    useCallback(() => {
+      resetFormState();
+
+      return () => {
+        resetFormState();
+      };
+    }, [resetFormState])
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -274,6 +288,20 @@ export function AddEditPriceFeatureScreen() {
     };
   }, [barcode]);
 
+  const handleExitToResults = useCallback(() => {
+    if (router.canGoBack?.()) {
+      router.back();
+      return;
+    }
+
+    if (barcode) {
+      router.replace({ pathname: '/results', params: { barcode } });
+      return;
+    }
+
+    router.back();
+  }, [barcode, router]);
+
   async function handleSave() {
     if (saveInFlightRef.current || isSaving || isMissingRequiredContext || isResolvingStoreContext) {
       return;
@@ -362,7 +390,7 @@ export function AddEditPriceFeatureScreen() {
                 </Text>
                 <Button
                   variant="secondary"
-                  onPress={() => router.back()}
+                  onPress={handleExitToResults}
                   accessibilityLabel="Go back to results"
                   testID="add-price-verifying-back-button"
                 >
@@ -381,7 +409,7 @@ export function AddEditPriceFeatureScreen() {
                 <Button
                   variant="secondary"
                   accessibilityLabel="Go back to results"
-                  onPress={() => router.back()}
+                  onPress={handleExitToResults}
                   testID="add-price-missing-context-back-button"
                 >
                   Go Back
@@ -445,7 +473,7 @@ export function AddEditPriceFeatureScreen() {
                   <Button
                     variant="secondary"
                     disabled={isSaving}
-                    onPress={() => router.back()}
+                    onPress={handleExitToResults}
                     accessibilityLabel="Cancel add or edit price"
                     testID="add-price-cancel-button"
                   >

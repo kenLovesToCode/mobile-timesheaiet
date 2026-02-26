@@ -5,6 +5,7 @@ const { act, fireEvent, render, waitFor } = require('@testing-library/react-nati
 
 const mockRouterPush = jest.fn();
 const mockRouterBack = jest.fn();
+const mockRouterReplace = jest.fn();
 const mockFocusEffects = new Set();
 let mockLocalSearchParams = {};
 
@@ -57,7 +58,7 @@ jest.mock('tamagui', () => {
 });
 
 jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: mockRouterPush, back: mockRouterBack }),
+  useRouter: () => ({ push: mockRouterPush, back: mockRouterBack, replace: mockRouterReplace }),
   useLocalSearchParams: () => mockLocalSearchParams,
   useFocusEffect: (effect) => {
     const React = require('react');
@@ -110,6 +111,7 @@ describe('Story 2.2 add/edit price and product info flow', () => {
     jest.clearAllMocks();
     mockRouterPush.mockReset();
     mockRouterBack.mockReset();
+    mockRouterReplace.mockReset();
     mockFocusEffects.clear();
     mockLocalSearchParams = {};
     __resetResultsRefreshMeasurementsForTests();
@@ -493,7 +495,10 @@ describe('Story 2.2 add/edit price and product info flow', () => {
     await waitFor(() => expect(screen.getByText('Verifying store context...')).toBeTruthy());
 
     fireEvent.press(screen.getByTestId('add-price-verifying-back-button'));
-    expect(mockRouterBack).toHaveBeenCalled();
+    expect(mockRouterReplace).toHaveBeenCalledWith({
+      pathname: '/results',
+      params: { barcode: '0123456789012' },
+    });
 
     resolveStorePromise({
       id: 2,

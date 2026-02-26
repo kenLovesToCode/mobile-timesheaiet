@@ -25,7 +25,6 @@ import {
 import { ScanCamera } from './scan-camera';
 import { triggerScanHaptics } from './scan-haptics';
 import {
-  discardPendingScanToResults,
   markPendingScanToResults,
   recordScanReadyMeasurement,
   startScanReadyMeasurement,
@@ -85,6 +84,7 @@ export function ScanFeatureScreen() {
   const isActiveRef = useRef(false);
   const scanReadyStartRef = useRef<number | null>(null);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recentScansRequestIdRef = useRef(0);
   const permissionFallbackActive =
     permissionState.status === 'denied' || permissionState.status === 'unavailable';
 
@@ -160,20 +160,22 @@ export function ScanFeatureScreen() {
   }, [clearFallbackTimer]);
 
   const loadRecentScans = useCallback(async () => {
+    const requestId = recentScansRequestIdRef.current + 1;
+    recentScansRequestIdRef.current = requestId;
     setRecentScansState('loading');
 
     try {
       const scans = await listRecentScans(RECENT_SCANS_LIMIT);
-      if (!isActiveRef.current) {
+      if (!isActiveRef.current || requestId !== recentScansRequestIdRef.current) {
         return;
       }
       setRecentScans(scans);
       setRecentScansState('ready');
     } catch (error) {
-      console.error('[scan] Failed to load recent scans', error);
-      if (!isActiveRef.current) {
+      if (!isActiveRef.current || requestId !== recentScansRequestIdRef.current) {
         return;
       }
+      console.error('[scan] Failed to load recent scans', error);
       setRecentScans([]);
       setRecentScansState('error');
     }
@@ -182,6 +184,11 @@ export function ScanFeatureScreen() {
   useFocusEffect(
     useCallback(() => {
       isActiveRef.current = true;
+      setManualEntryOpen(false);
+      setManualEntryValue('');
+      setFallbackVisible(false);
+      setRecentScansState('idle');
+      setRecentScans([]);
       setIsFocused(true);
       void loadGateState();
       void loadPermissionState();
@@ -190,6 +197,7 @@ export function ScanFeatureScreen() {
         isActiveRef.current = false;
         setIsFocused(false);
         setCameraReady(false);
+        setTorchEnabled(false);
         setManualEntryValue('');
         scanReadyStartRef.current = null;
         resetFallbackState();
@@ -212,7 +220,7 @@ export function ScanFeatureScreen() {
     if (scanReadyStartRef.current == null) {
       scanReadyStartRef.current = startScanReadyMeasurement();
     }
-  }, [canMountCamera, resetFallbackState]);
+  }, [canMountCamera, permissionFallbackActive, resetFallbackState]);
 
   useEffect(() => {
     if (!isFocused || !canMountCamera || !cameraReady) {
