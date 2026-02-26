@@ -87,6 +87,38 @@ jest.mock('../src/dev/device-smoke-screen', () => {
   };
 });
 
+jest.mock('../src/features/results/results-screen', () => {
+  const React = require('react');
+  const { Text, View } = require('react-native');
+
+  return {
+    ResultsFeatureScreen: function MockResultsFeatureScreen() {
+      return React.createElement(
+        View,
+        null,
+        React.createElement(Text, null, 'Results'),
+        React.createElement(Text, null, 'Review scanned results and compare prices across stores.')
+      );
+    },
+  };
+});
+
+jest.mock('../src/features/pricing/add-edit-price-screen', () => {
+  const React = require('react');
+  const { Text, View } = require('react-native');
+
+  return {
+    AddEditPriceFeatureScreen: function MockAddEditPriceFeatureScreen() {
+      return React.createElement(
+        View,
+        null,
+        React.createElement(Text, null, 'Add Price'),
+        React.createElement(Text, null, 'Enter manual product pricing when scan data is unavailable.')
+      );
+    },
+  };
+});
+
 jest.mock('../src/db/repositories/store-repository', () => ({
   listStores: jest.fn().mockResolvedValue([]),
   createStore: jest.fn(),
@@ -118,6 +150,17 @@ function withDevFlag(devFlag, callback) {
   }
 }
 
+async function withDevFlagAsync(devFlag, callback) {
+  const previousDevFlag = global.__DEV__;
+  global.__DEV__ = devFlag;
+
+  try {
+    return await callback();
+  } finally {
+    global.__DEV__ = previousDevFlag;
+  }
+}
+
 function loadDeviceSmokeRoute(devFlag) {
   let DeviceSmokeRoute;
 
@@ -135,8 +178,8 @@ describe('Story 1.4 app shell navigation scaffold', () => {
     __mockSafeAreaViewPropsLog.length = 0;
   });
 
-  it('provides mocked Expo Router navigation smoke coverage for primary routes (AC2 support)', () => {
-    withDevFlag(false, () => {
+  it('provides mocked Expo Router navigation smoke coverage for primary routes (AC2 support)', async () => {
+    await withDevFlagAsync(false, async () => {
       const routerRender = renderRouter(
         {
           _layout: RootLayout,
@@ -194,6 +237,16 @@ describe('Story 1.4 app shell navigation scaffold', () => {
         expect(routerRender).toHavePathname(pathname);
         expect(routerTesting.screen.getByText(title)).toBeTruthy();
         expect(routerTesting.screen.getByText(description)).toBeTruthy();
+
+        if (pathname === '/stores') {
+          expect(await routerTesting.screen.findByText('No stores saved yet.')).toBeTruthy();
+        }
+
+        if (pathname === '/scan') {
+          expect(
+            await routerTesting.screen.findByText('Activate a store to start scanning')
+          ).toBeTruthy();
+        }
 
         testRouter.push('/');
         expect(routerRender).toHavePathname('/');

@@ -50,7 +50,7 @@ development_status:
 
   epic-2: in-progress
   2-1-store-setup-and-active-gating: done
-  2-2-add-or-edit-price-and-product-info: backlog
+  2-2-add-or-edit-price-and-product-info: done
   2-3-results-view-for-active-stores: backlog
   2-4-scan-flow-with-haptics-and-torch: backlog
   2-5-fallback-to-manual-entry-and-recent-scans: backlog

@@ -4,5 +4,6 @@ import { drizzle } from 'drizzle-orm/expo-sqlite';
 import * as schema from './schema';
 
 export const sqlite = SQLite.openDatabaseSync('pricetag.db');
+sqlite.execSync('PRAGMA foreign_keys = ON;');
 
 export const db = drizzle(sqlite, { schema });

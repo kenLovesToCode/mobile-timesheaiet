@@ -1,10 +1,5 @@
-import { PlaceholderScreen } from '../src/components/shell/placeholder-screen';
+import { AddEditPriceFeatureScreen } from '../src/features/pricing/add-edit-price-screen';
 
 export default function AddPriceScreen() {
-  return (
-    <PlaceholderScreen
-      title="Add Price"
-      description="Enter manual product pricing when scan data is unavailable."
-    />
-  );
+  return <AddEditPriceFeatureScreen />;
 }

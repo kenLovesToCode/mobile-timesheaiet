@@ -33,6 +33,12 @@ export async function listStores(): Promise<StoreListItem[]> {
   return rows.map(mapStoreRow);
 }
 
+export async function getStoreById(id: number): Promise<StoreListItem | null> {
+  const rows = await db.select().from(stores).where(eq(stores.id, id)).limit(1);
+  const row = rows[0];
+  return row ? mapStoreRow(row) : null;
+}
+
 export async function createStore(input: unknown): Promise<StoreListItem> {
   const payload = parseCreateStoreInput(input);
   const now = Date.now();
@@ -108,4 +114,3 @@ export async function getActiveStoreCount(): Promise<number> {
 
   return Number(rows[0]?.count ?? 0);
 }
-
