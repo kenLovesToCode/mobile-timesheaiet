@@ -175,6 +175,60 @@ describe('Story 2.6 Permission denied and empty state handling', () => {
     });
   });
 
+  it('navigates to Results from manual entry when permission is denied (AC2)', async () => {
+    storeRepository.getActiveStoreCount.mockResolvedValue(1);
+    cameraPermission.getCameraPermissionSnapshot.mockResolvedValue(
+      createPermissionSnapshot({ granted: false, canAskAgain: false })
+    );
+    recentScansRepository.listRecentScans.mockResolvedValue([]);
+
+    const screen = render(React.createElement(ScanFeatureScreen));
+
+    await triggerMockFocus();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('scan-fallback-manual-entry')).toBeTruthy()
+    );
+
+    fireEvent.press(screen.getByTestId('scan-fallback-manual-entry'));
+    const manualInput = screen.getByTestId('scan-fallback-manual-input');
+
+    fireEvent.changeText(manualInput, 'bad');
+    fireEvent.press(screen.getByTestId('scan-fallback-manual-submit'));
+    expect(mockRouterPush).not.toHaveBeenCalled();
+
+    fireEvent.changeText(manualInput, '0123456789012');
+    fireEvent.press(screen.getByTestId('scan-fallback-manual-submit'));
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/results',
+      params: { barcode: '0123456789012' },
+    });
+  });
+
+  it('routes to Results when selecting a recent scan while permission is denied (AC3)', async () => {
+    storeRepository.getActiveStoreCount.mockResolvedValue(1);
+    cameraPermission.getCameraPermissionSnapshot.mockResolvedValue(
+      createPermissionSnapshot({ granted: false, canAskAgain: false })
+    );
+    recentScansRepository.listRecentScans.mockResolvedValue([
+      { id: 11, barcode: '999999999999', scannedAt: 1700000000000, source: 'scan' },
+    ]);
+
+    const screen = render(React.createElement(ScanFeatureScreen));
+
+    await triggerMockFocus();
+
+    await waitFor(() =>
+      expect(screen.getByTestId('scan-recent-scan-11')).toBeTruthy()
+    );
+
+    fireEvent.press(screen.getByTestId('scan-recent-scan-11'));
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/results',
+      params: { barcode: '999999999999' },
+    });
+  });
+
   it('shows an empty state CTA to manual entry when no recent scans exist (AC4)', async () => {
     storeRepository.getActiveStoreCount.mockResolvedValue(1);
     cameraPermission.getCameraPermissionSnapshot.mockResolvedValue(

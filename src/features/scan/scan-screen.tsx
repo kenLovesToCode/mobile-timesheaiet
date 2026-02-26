@@ -301,7 +301,6 @@ export function ScanFeatureScreen() {
       return;
     }
 
-    discardPendingScanToResults(manualEntryBarcode);
     setManualEntryOpen(false);
     setFallbackVisible(false);
     setManualEntryValue('');
@@ -331,7 +330,6 @@ export function ScanFeatureScreen() {
 
   const handleRecentScanPress = useCallback(
     (barcode: string) => {
-      discardPendingScanToResults(barcode);
       setManualEntryOpen(false);
       setFallbackVisible(false);
       setManualEntryValue('');
