@@ -509,6 +509,7 @@ Optional edge recoveries (kept minimal in UI):
 ### Journey Patterns
 
 - **Gating pattern:** If prerequisites missing (active stores), redirect to a calm setup screen with one CTA.
+- **Navigation model:** Primary tabs for Home, Stores, Scan, Shopping; Results is a flow destination, not a tab.
 - **Contextual action pattern:** Secondary actions are row-tap / contextual (e.g., Missing → Add Price).
 - **Identity-first pattern:** Name is primary; barcode + timestamp are always visible but secondary to reduce doubt.
 - **Offline-first confirmation pattern:** Save → instant Results update + subtle “Saved” feedback.
@@ -695,6 +696,23 @@ The ultra-minimal direction (Direction 5) + our journeys require custom componen
 - Tap Missing store row → Add Price sheet (primary contextual action).
 - Tap priced store row → Edit Price (secondary contextual action).
 - Tap product identity area or overflow → Edit name (secondary).
+
+### Navigation Model Update
+
+- Primary tabs: Home, Stores, Scan, Shopping (Shopping may be placeholder pre-Epic 3).
+- Results is a flow destination, not a tab.
+- Add Price is a contextual sheet/route, only reachable from Results.
+
+### Guarding & Gating
+
+- Results requires barcode context; if missing, route back to Scan with clear CTA.
+- Add Price requires store + barcode context; otherwise redirect safely.
+
+### Home Screen Guidance
+
+- Remove debug route list.
+- Home presents a primary CTA to Scan and secondary access to Stores/Shopping.
+- Copy aligns with calm, minimal voice.
 
 This keeps screens calm while still making actions available.
 

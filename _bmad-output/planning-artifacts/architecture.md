@@ -172,6 +172,8 @@ Yarn 4.1+ required for the Tamagui template.
 ### Frontend Architecture
 
 **Routing:** Expo Router only (file-based routes).
+**Navigation Shell:** Primary tab navigation with Home, Stores, Scan, Shopping. Results is not a tab route.
+**Route Guards:** Results and Add Price routes require barcode (and store for Add Price). Guard should redirect to Scan (or a safe parent) when missing context.
 
 **State Management:** Zustand for local UI/domain state; React Query for server sync/backup calls.
 
@@ -313,6 +315,8 @@ priceTag/
 - Data access only through `src/db/` + repository layer in `src/services/`
 - Zustand stores in `src/state/` (feature slices)
 - React Query only for future remote sync (kept in `src/services/sync/` when enabled)
+- Route guards live in route entry points (`app/`) but logic is delegated to feature-level guard utilities (e.g., `src/features/scan/guards/*`).
+- Results/Add Price route components must validate context before rendering feature screens.
 
 ## Architecture Validation Results
 

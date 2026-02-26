@@ -128,6 +128,10 @@ Users can set up active stores, scan or enter a barcode, instantly see store-spe
 Users can add scanned products to a simple list, manage quantity, prevent duplicates by barcode, and check items as they go.
 **FRs covered:** FR25, FR26, FR27, FR28, FR29, FR30
 
+### Epic 4: Navigation, Flow Guarding, and Home Experience
+Users have a clean, intentional navigation model and cannot reach Results without scan context, with a home screen that reflects the core flow.
+**FRs covered:** None (UX/navigation improvement epic)
+
 ## Epic 1: Foundations and Local-First Setup
 
 Users can open the app with base UI scaffolding and the local-first data layer ready, providing a stable offline foundation for all later features.
@@ -467,3 +471,67 @@ So that I can track shopping progress.
 **Given** a list item exists
 **When** I toggle its checked state
 **Then** the item reflects in-cart status immediately
+
+## Epic 4: Navigation, Flow Guarding, and Home Experience
+
+Users have a clean, intentional navigation model and cannot reach Results without scan context, with a home screen that reflects the core flow.
+
+### Story 4.1: Primary Navigation Shell
+
+As a shopper,
+I want consistent primary navigation (Home, Stores, Scan, Shopping),
+So that the app feels structured and predictable.
+
+**Acceptance Criteria:**
+
+**Given** I am in the app
+**When** I view primary navigation
+**Then** I see Home, Stores, Scan, and Shopping tabs
+
+**Given** I use primary navigation
+**When** I navigate between tabs
+**Then** navigation works without exposing Results as a top-level destination
+
+**Given** Shopping is not yet implemented
+**When** I open the Shopping tab
+**Then** I see a placeholder state until Epic 3 is complete
+
+### Story 4.2: Route Guarding for Results and Add Price
+
+As a shopper,
+I want Results and Add Price to require a barcode context,
+So that I never land on dead-end screens.
+
+**Acceptance Criteria:**
+
+**Given** I open Results without a barcode context
+**When** the screen loads
+**Then** I am redirected to Scan or shown a safe guard with a clear CTA
+
+**Given** I try to open Add Price without a store and barcode context
+**When** the screen loads
+**Then** I am redirected to Results or Scan appropriately
+
+**Given** I follow the normal Scan → Results flow
+**When** I reach Results or Add Price
+**Then** I never see a “missing barcode context” error
+
+### Story 4.3: Home Screen UX Cleanup
+
+As a shopper,
+I want a simple home screen that reflects the core flow,
+So that the app feels usable and not developer-only.
+
+**Acceptance Criteria:**
+
+**Given** I open Home
+**When** I view the content
+**Then** the debug route list is not present
+
+**Given** I am on Home
+**When** I want to begin the core flow
+**Then** I have a primary CTA to Scan and secondary access to Stores and Shopping
+
+**Given** I read Home copy
+**When** I view the text
+**Then** it aligns with the calm, minimal UX direction
