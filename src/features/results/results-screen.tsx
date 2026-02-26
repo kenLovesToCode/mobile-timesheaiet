@@ -13,17 +13,21 @@ import {
   type ResultsLookupRecord,
   type ResultsStorePriceRow,
 } from '../../db/repositories/pricing-repository';
+import { recordCompletedScanToResults } from '../scan/scan-performance';
 import { recordCompletedResultsRefreshMeasurement } from './results-refresh-performance';
 import { spacing } from '../../theme/tokens';
 
 type ResultsRouteParams = {
   barcode?: string | string[];
+  source?: string | string[];
 };
 
 type ResultsScreenState =
   | { status: 'loading' }
   | { status: 'error'; message?: string }
   | { status: 'ready'; data: ResultsLookupRecord };
+
+type FrameHandle = ReturnType<typeof setTimeout>;
 
 function getParamString(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) {
@@ -55,11 +59,24 @@ function formatCapturedAt(timestamp: number | null): string | undefined {
   })}`;
 }
 
+function scheduleAfterRender(cb: () => void): FrameHandle {
+  return setTimeout(cb, 0);
+}
+
+function cancelScheduled(handle: FrameHandle | null): void {
+  if (handle == null) {
+    return;
+  }
+
+  clearTimeout(handle);
+}
+
 export function ResultsFeatureScreen() {
   const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<ResultsRouteParams>();
   const barcode = getParamString(params.barcode)?.trim();
+  const source = getParamString(params.source);
   const [screenState, setScreenState] = useState<ResultsScreenState>({ status: 'loading' });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshErrorMessage, setRefreshErrorMessage] = useState<string | null>(null);
@@ -68,6 +85,7 @@ export function ResultsFeatureScreen() {
   const focusedBarcodeRef = useRef<string | null>(null);
   const isFocusedRef = useRef(false);
   const rowNavigationLatchRef = useRef<{ storeId: number; atMs: number } | null>(null);
+  const scanPerformanceFrameRef = useRef<FrameHandle | null>(null);
 
   const sortedStores = useMemo(() => {
     if (screenState.status !== 'ready') {
@@ -161,6 +179,25 @@ export function ResultsFeatureScreen() {
       }
     }
   }, [barcode]);
+
+  useEffect(() => {
+    if (screenState.status !== 'ready') {
+      return;
+    }
+    if (source !== 'scan') {
+      return;
+    }
+    cancelScheduled(scanPerformanceFrameRef.current);
+    scanPerformanceFrameRef.current = scheduleAfterRender(() => {
+      recordCompletedScanToResults(screenState.data.barcode);
+      scanPerformanceFrameRef.current = null;
+    });
+
+    return () => {
+      cancelScheduled(scanPerformanceFrameRef.current);
+      scanPerformanceFrameRef.current = null;
+    };
+  }, [screenState, source]);
 
   useFocusEffect(
     useCallback(() => {

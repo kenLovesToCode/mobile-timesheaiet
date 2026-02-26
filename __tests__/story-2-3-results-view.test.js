@@ -6,6 +6,7 @@ const { act, fireEvent, render, waitFor } = require('@testing-library/react-nati
 const mockRouterPush = jest.fn();
 const mockFocusEffects = new Set();
 let mockLocalSearchParams = {};
+const mockRecordCompletedScanToResults = jest.fn();
 
 jest.mock('react-native-safe-area-context', () => {
   const actual = jest.requireActual('react-native-safe-area-context');
@@ -79,6 +80,10 @@ jest.mock('../src/db/repositories/pricing-repository', () => ({
   getResultsByBarcodeAcrossActiveStores: jest.fn(),
 }));
 
+jest.mock('../src/features/scan/scan-performance', () => ({
+  recordCompletedScanToResults: (...args) => mockRecordCompletedScanToResults(...args),
+}));
+
 const pricingRepository = require('../src/db/repositories/pricing-repository');
 const { ResultsFeatureScreen } = require('../src/features/results/results-screen');
 
@@ -96,10 +101,11 @@ describe('Story 2.3 Results view for active stores', () => {
     mockRouterPush.mockReset();
     mockFocusEffects.clear();
     mockLocalSearchParams = {};
+    mockRecordCompletedScanToResults.mockReset();
   });
 
   it('renders a row per active store and preserves ordering (AC1)', async () => {
-    mockLocalSearchParams = { barcode: '0123456789012' };
+    mockLocalSearchParams = { barcode: '0123456789012', source: 'scan' };
     pricingRepository.getResultsByBarcodeAcrossActiveStores.mockResolvedValue({
       barcode: '0123456789012',
       productName: 'Spinach',
@@ -191,6 +197,33 @@ describe('Story 2.3 Results view for active stores', () => {
 
     await waitFor(() => expect(screen.getByText('Greek Yogurt')).toBeTruthy());
     expect(screen.getByText('Barcode: 9999999999999')).toBeTruthy();
+  });
+
+  it('records scan-to-results timing after the results render', async () => {
+    jest.useFakeTimers();
+
+    mockLocalSearchParams = { barcode: '0123456789012' };
+    pricingRepository.getResultsByBarcodeAcrossActiveStores.mockResolvedValue({
+      barcode: '0123456789012',
+      productName: 'Spinach',
+      stores: [],
+    });
+
+    const screen = render(React.createElement(ResultsFeatureScreen));
+
+    await waitFor(() => expect(screen.getByText('Store prices')).toBeTruthy());
+
+    expect(mockRecordCompletedScanToResults).not.toHaveBeenCalled();
+
+    await act(async () => {});
+
+    await act(async () => {
+      jest.runOnlyPendingTimers();
+    });
+
+    expect(mockRecordCompletedScanToResults).toHaveBeenCalledWith('0123456789012');
+
+    jest.useRealTimers();
   });
 
   it('fails closed when barcode context is missing with retry guidance (AC3)', async () => {

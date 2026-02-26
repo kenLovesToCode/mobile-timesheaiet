@@ -5,6 +5,7 @@ const { render, fireEvent, waitFor, act } = require('@testing-library/react-nati
 
 const mockRouterPush = jest.fn();
 const mockFocusEffects = new Set();
+const mockCameraViewProps = { current: null };
 
 jest.mock('react-native-safe-area-context', () => {
   const actual = jest.requireActual('react-native-safe-area-context');
@@ -73,6 +74,18 @@ jest.mock('expo-router', () => ({
   },
 }));
 
+jest.mock('expo-camera', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  return {
+    CameraView: (props) => {
+      mockCameraViewProps.current = props;
+      return React.createElement(View, { testID: 'mock-camera-view' }, props.children);
+    },
+  };
+});
+
 jest.mock('../src/db/repositories/store-repository', () => ({
   listStores: jest.fn(),
   createStore: jest.fn(),
@@ -81,7 +94,13 @@ jest.mock('../src/db/repositories/store-repository', () => ({
   getActiveStoreCount: jest.fn(),
 }));
 
+jest.mock('../src/features/scan/permissions/camera-permission', () => ({
+  getCameraPermissionSnapshot: jest.fn(),
+  requestCameraPermissionSnapshot: jest.fn(),
+}));
+
 const storeRepository = require('../src/db/repositories/store-repository');
+const cameraPermission = require('../src/features/scan/permissions/camera-permission');
 const { StoresFeatureScreen } = require('../src/features/stores/stores-screen');
 const { ScanFeatureScreen } = require('../src/features/scan/scan-screen');
 
@@ -98,6 +117,14 @@ describe('Story 2.1 store setup and active gating', () => {
     jest.clearAllMocks();
     mockRouterPush.mockReset();
     mockFocusEffects.clear();
+    mockCameraViewProps.current = null;
+    cameraPermission.getCameraPermissionSnapshot.mockResolvedValue({
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+      expires: 'never',
+      isAvailable: true,
+    });
   });
 
   it('adds a store and shows it in the list (AC1)', async () => {
@@ -218,9 +245,7 @@ describe('Story 2.1 store setup and active gating', () => {
 
     await waitFor(() => expect(screen.getByText('Scan is ready')).toBeTruthy());
     expect(
-      screen.getByText(
-        '2 active stores found. Camera capture UI will plug into this entry state in a later story.'
-      )
+      screen.getByText('2 active stores configured for results.')
     ).toBeTruthy();
   });
 

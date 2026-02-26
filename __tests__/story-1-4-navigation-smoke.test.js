@@ -127,6 +127,32 @@ jest.mock('../src/db/repositories/store-repository', () => ({
   getActiveStoreCount: jest.fn().mockResolvedValue(0),
 }));
 
+jest.mock('expo-camera', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  return {
+    CameraView: (props) => React.createElement(View, props, props.children),
+  };
+});
+
+jest.mock('../src/features/scan/permissions/camera-permission', () => ({
+  getCameraPermissionSnapshot: jest.fn().mockResolvedValue({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+    expires: 'never',
+    isAvailable: true,
+  }),
+  requestCameraPermissionSnapshot: jest.fn().mockResolvedValue({
+    status: 'granted',
+    granted: true,
+    canAskAgain: true,
+    expires: 'never',
+    isAvailable: true,
+  }),
+}));
+
 const routerTesting = require('expo-router/testing-library');
 const { renderRouter, testRouter } = routerTesting;
 const { __mockSafeAreaViewPropsLog } = require('react-native-safe-area-context');
@@ -210,7 +236,7 @@ describe('Story 1.4 app shell navigation scaffold', () => {
           'Open Scan',
           '/scan',
           'Scan',
-          'Scan entry stays feature-driven while camera permissions and capture flow land in later stories.',
+          'Camera scanning is now live with haptics and torch support.',
         ],
         [
           'Open Results',
