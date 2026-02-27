@@ -224,7 +224,7 @@ describe('Story 2.3 Results view for active stores', () => {
     );
   });
 
-  it('fails closed when barcode context is missing with retry guidance (AC3)', async () => {
+  it('fails closed when barcode context is missing by redirecting to Scan (AC3)', async () => {
     mockLocalSearchParams = {};
     pricingRepository.getResultsByBarcodeAcrossActiveStores.mockResolvedValue({
       barcode: '0123456789012',
@@ -234,16 +234,11 @@ describe('Story 2.3 Results view for active stores', () => {
 
     const screen = render(React.createElement(ResultsFeatureScreen));
 
-    await waitFor(() =>
-      expect(
-        screen.getByText('Missing barcode context. Return to Scan and open Results again.')
-      ).toBeTruthy()
-    );
+    await waitFor(() => expect(screen.getByText('Taking you back to Scan...')).toBeTruthy());
     expect(pricingRepository.getResultsByBarcodeAcrossActiveStores).not.toHaveBeenCalled();
-    expect(screen.getByTestId('results-retry-button')).toBeTruthy();
-    expect(screen.getByTestId('results-scan-button')).toBeTruthy();
+    expect(screen.getByTestId('results-guard-scan-button')).toBeTruthy();
 
-    fireEvent.press(screen.getByTestId('results-scan-button'));
+    fireEvent.press(screen.getByTestId('results-guard-scan-button'));
     expect(mockRouterPush).toHaveBeenCalledWith('/scan');
   });
 

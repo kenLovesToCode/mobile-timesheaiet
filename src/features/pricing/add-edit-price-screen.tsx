@@ -12,6 +12,7 @@ import { getProductByBarcode, saveStorePrice } from '../../db/repositories/prici
 import { getStoreById } from '../../db/repositories/store-repository';
 import { PricingValidationError } from '../../db/validation/pricing';
 import { markPendingResultsRefreshMeasurement } from '../results/results-refresh-performance';
+import { guardAddPriceRouteContext } from '../scan/guards/route-context-guard';
 import { spacing } from '../../theme/tokens';
 
 type AddPriceRouteParams = {
@@ -22,37 +23,6 @@ type AddPriceRouteParams = {
   priceCents?: string | string[];
   mode?: string | string[];
 };
-
-function getParamString(value: string | string[] | undefined): string | undefined {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
-}
-
-function hasParamValue(value: string | undefined): boolean {
-  return (value?.trim().length ?? 0) > 0;
-}
-
-function parseStrictIntegerParam(value: string | undefined): number | undefined {
-  const normalized = value?.trim();
-
-  if (!normalized) {
-    return undefined;
-  }
-
-  if (!/^\d+$/.test(normalized)) {
-    return undefined;
-  }
-
-  const parsed = Number(normalized);
-  if (!Number.isSafeInteger(parsed)) {
-    return undefined;
-  }
-
-  return parsed;
-}
 
 function formatCentsForInput(priceCents: number | null): string {
   if (priceCents == null || Number.isNaN(priceCents)) {
@@ -85,21 +55,48 @@ export function AddEditPriceFeatureScreen() {
   const theme = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<AddPriceRouteParams>();
-
-  const barcode = getParamString(params.barcode)?.trim() || undefined;
-  const storeIdParam = getParamString(params.storeId);
-  const storeName = getParamString(params.storeName);
-  const productNameParam = getParamString(params.productName);
-  const priceCentsParam = getParamString(params.priceCents);
-  const mode = getParamString(params.mode) === 'edit' ? 'edit' : 'add';
-  const parsedStoreId = parseStrictIntegerParam(storeIdParam);
-  const parsedInitialPriceCents = parseStrictIntegerParam(priceCentsParam);
-  const initialProductName = productNameParam ?? '';
-  const initialPriceCents = parsedInitialPriceCents ?? null;
-  const routeSignature = `${barcode ?? ''}|${storeIdParam ?? ''}|${productNameParam ?? ''}|${priceCentsParam ?? ''}|${mode}`;
-  const hasMalformedStoreIdParam = hasParamValue(storeIdParam) && (!parsedStoreId || parsedStoreId <= 0);
-  const hasMalformedPriceCentsParam = hasParamValue(priceCentsParam) && parsedInitialPriceCents == null;
-  const hasMalformedNumericRouteParams = hasMalformedStoreIdParam || hasMalformedPriceCentsParam;
+  const rawBarcodeParam = Array.isArray(params.barcode) ? params.barcode[0] : params.barcode;
+  const rawStoreIdParam = Array.isArray(params.storeId) ? params.storeId[0] : params.storeId;
+  const rawStoreNameParam = Array.isArray(params.storeName) ? params.storeName[0] : params.storeName;
+  const rawProductNameParam = Array.isArray(params.productName)
+    ? params.productName[0]
+    : params.productName;
+  const rawPriceCentsParam = Array.isArray(params.priceCents) ? params.priceCents[0] : params.priceCents;
+  const rawModeParam = Array.isArray(params.mode) ? params.mode[0] : params.mode;
+  const routeGuard = useMemo(
+    () =>
+      guardAddPriceRouteContext({
+        barcode: rawBarcodeParam,
+        storeId: rawStoreIdParam,
+        storeName: rawStoreNameParam,
+        productName: rawProductNameParam,
+        priceCents: rawPriceCentsParam,
+        mode: rawModeParam,
+      }),
+    [
+      rawBarcodeParam,
+      rawStoreIdParam,
+      rawStoreNameParam,
+      rawProductNameParam,
+      rawPriceCentsParam,
+      rawModeParam,
+    ]
+  );
+  const routeContext = routeGuard.decision === 'allow' ? routeGuard.context : null;
+  const redirectTarget = routeGuard.decision === 'redirect' ? routeGuard.target : undefined;
+  const redirectBarcode =
+    routeGuard.decision === 'redirect' && routeGuard.target === '/results'
+      ? routeGuard.params.barcode
+      : undefined;
+  const barcode = routeContext?.barcode;
+  const parsedStoreId = routeContext?.storeId;
+  const storeName = routeContext?.storeName;
+  const mode = routeContext?.mode ?? 'add';
+  const initialProductName = routeContext?.productName ?? '';
+  const initialPriceCents = routeContext?.priceCents ?? null;
+  const routeSignature = routeContext
+    ? `${routeContext.barcode}|${routeContext.storeId}|${routeContext.productName ?? ''}|${routeContext.priceCents ?? ''}|${routeContext.mode}`
+    : (redirectTarget ?? 'redirect');
   const hasValidStoreId = parsedStoreId != null && parsedStoreId > 0;
 
   const [productName, setProductName] = useState(initialProductName);
@@ -109,17 +106,15 @@ export function AddEditPriceFeatureScreen() {
   const [storeContextNotice, setStoreContextNotice] = useState<string | null>(null);
   const [verifiedStoreName, setVerifiedStoreName] = useState<string | null>(null);
   const [isResolvingStoreContext, setIsResolvingStoreContext] = useState(hasValidStoreId);
-  const [storeContextRequestId, setStoreContextRequestId] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [canonicalProductName, setCanonicalProductName] = useState<string | null>(null);
   const [isResolvingProductContext, setIsResolvingProductContext] = useState(false);
   const [didProductContextLookupFail, setDidProductContextLookupFail] = useState(false);
   const saveInFlightRef = useRef(false);
   const productNameEditedRef = useRef(false);
-  const hasInitializedRef = useRef(false);
 
   const hasStoreContextIssue = !hasValidStoreId || (!isResolvingStoreContext && !verifiedStoreName);
-  const isMissingRequiredContext = !barcode || hasMalformedNumericRouteParams || hasStoreContextIssue;
+  const isMissingRequiredContext = !barcode || hasStoreContextIssue;
   const normalizedInitialProductName = initialProductName.trim();
   const normalizedCanonicalProductName = canonicalProductName?.trim() ?? '';
   const isCanonicalProductKnown = normalizedCanonicalProductName.length > 0;
@@ -139,6 +134,30 @@ export function AddEditPriceFeatureScreen() {
 
     return 'Store and barcode are prefilled from the selected Results row.';
   }, [mode]);
+
+  const navigateToSafeResults = useCallback(() => {
+    if (barcode) {
+      router.replace({ pathname: '/results', params: { barcode } });
+      return;
+    }
+
+    router.replace('/scan');
+  }, [barcode, router]);
+
+  useEffect(() => {
+    if (routeGuard.decision !== 'redirect') {
+      return;
+    }
+
+    if (redirectTarget === '/scan') {
+      router.replace('/scan');
+      return;
+    }
+
+    if (redirectBarcode) {
+      router.replace({ pathname: '/results', params: { barcode: redirectBarcode } });
+    }
+  }, [routeGuard.decision, redirectTarget, redirectBarcode, router]);
 
   const resetFormState = useCallback(() => {
     setProductName(initialProductName);
@@ -160,25 +179,14 @@ export function AddEditPriceFeatureScreen() {
     resetFormState();
   }, [resetFormState, routeSignature]);
 
-  const bumpStoreContext = useCallback(() => {
-    if (hasValidStoreId) {
-      setStoreContextRequestId((prev) => prev + 1);
-    }
-  }, [hasValidStoreId]);
-
   useFocusEffect(
     useCallback(() => {
       resetFormState();
-      if (hasInitializedRef.current) {
-        bumpStoreContext();
-      } else {
-        hasInitializedRef.current = true;
-      }
 
       return () => {
         resetFormState();
       };
-    }, [resetFormState, bumpStoreContext])
+    }, [resetFormState])
   );
 
   useEffect(() => {
@@ -201,10 +209,6 @@ export function AddEditPriceFeatureScreen() {
       return;
     }
 
-    setIsResolvingStoreContext(true);
-    setStoreContextError(null);
-    setStoreContextNotice(null);
-
     void getStoreById(storeId)
       .then((store) => {
         if (!isMounted) {
@@ -213,7 +217,7 @@ export function AddEditPriceFeatureScreen() {
 
         if (!store) {
           setVerifiedStoreName(null);
-          setStoreContextError('Selected store could not be found. Return to Results and try again.');
+          navigateToSafeResults();
           return;
         }
 
@@ -244,7 +248,7 @@ export function AddEditPriceFeatureScreen() {
     return () => {
       isMounted = false;
     };
-  }, [hasValidStoreId, parsedStoreId, storeName, storeContextRequestId]);
+  }, [hasValidStoreId, parsedStoreId, storeName, navigateToSafeResults]);
 
   useEffect(() => {
     let isMounted = true;
@@ -302,21 +306,28 @@ export function AddEditPriceFeatureScreen() {
   }, [barcode]);
 
   const handleExitToResults = useCallback(() => {
-    if (router.canGoBack?.()) {
-      router.back();
+    navigateToSafeResults();
+  }, [navigateToSafeResults]);
+
+  function handleGuardCta() {
+    if (routeGuard.decision !== 'redirect') {
       return;
     }
 
-    if (barcode) {
-      router.replace({ pathname: '/results', params: { barcode } });
+    if (routeGuard.target === '/scan') {
+      router.replace('/scan');
       return;
     }
 
-    router.back();
-  }, [barcode, router]);
+    router.replace({ pathname: '/results', params: { barcode: routeGuard.params.barcode } });
+  }
 
   async function handleSave() {
-    if (saveInFlightRef.current || isSaving || isMissingRequiredContext || isResolvingStoreContext) {
+    if (
+      saveInFlightRef.current ||
+      isSaving ||
+      isMissingRequiredContext
+    ) {
       return;
     }
     const storeId = parsedStoreId;
@@ -327,7 +338,12 @@ export function AddEditPriceFeatureScreen() {
     setFormError(null);
 
     const normalizedProductName = productName.trim();
-    if (productNameWasMissing && normalizedProductName.length === 0) {
+    const isProductNameRequiredForSave =
+      normalizedProductName.length === 0 &&
+      normalizedInitialProductName.length === 0 &&
+      !isCanonicalProductKnown &&
+      !didProductContextLookupFail;
+    if (isProductNameRequiredForSave) {
       setFormError('Product name is required before saving a new price.');
       return;
     }
@@ -395,19 +411,25 @@ export function AddEditPriceFeatureScreen() {
               {helperText}
             </Text>
 
-            {isResolvingStoreContext && barcode && hasValidStoreId ? (
+            {routeGuard.decision === 'redirect' ? (
               <View style={styles.formStack}>
-                <Text variant="headline">Verifying store context...</Text>
+                <Text variant="headline">
+                  {routeGuard.target === '/scan'
+                    ? 'Redirecting to Scan...'
+                    : 'Redirecting to Results...'}
+                </Text>
                 <Text variant="footnote" tone="secondary">
-                  Checking that the selected store still matches the saved record before editing.
+                  {routeGuard.target === '/scan'
+                    ? 'Add Price requires a barcode from the scan flow.'
+                    : 'Add Price requires a store context from Results.'}
                 </Text>
                 <Button
                   variant="secondary"
-                  onPress={handleExitToResults}
-                  accessibilityLabel="Go back to results"
-                  testID="add-price-verifying-back-button"
+                  accessibilityLabel="Continue to valid flow"
+                  onPress={handleGuardCta}
+                  testID="add-price-guard-redirect-button"
                 >
-                  Go Back
+                  Continue
                 </Button>
               </View>
             ) : isMissingRequiredContext ? (
@@ -430,14 +452,26 @@ export function AddEditPriceFeatureScreen() {
               </View>
             ) : (
               <View style={styles.formStack}>
+                {isResolvingStoreContext ? (
+                  <>
+                    <Text variant="headline">Verifying store context...</Text>
+                    <Button
+                      variant="secondary"
+                      onPress={handleExitToResults}
+                      accessibilityLabel="Go back to results"
+                      testID="add-price-verifying-back-button"
+                    >
+                      Go Back
+                    </Button>
+                  </>
+                ) : null}
                 <Input
                   label="Store"
                   value={verifiedStoreName ?? (isResolvingStoreContext ? 'Loading store...' : '')}
                   editable={false}
                   helperText={
-                    isResolvingStoreContext
-                      ? 'Verifying selected store context...'
-                      : storeContextNotice ?? undefined
+                    storeContextNotice ??
+                    (isResolvingStoreContext ? 'Verifying selected store context...' : undefined)
                   }
                   testID="add-price-store-input"
                 />

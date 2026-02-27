@@ -66,6 +66,6 @@ development_status:
 
   epic-4: in-progress
   4-1-primary-navigation-shell: done
-  4-2-route-guarding-for-results-and-add-price: backlog
+  4-2-route-guarding-for-results-and-add-price: done
   4-3-home-screen-ux-cleanup: backlog
   epic-4-retrospective: optional

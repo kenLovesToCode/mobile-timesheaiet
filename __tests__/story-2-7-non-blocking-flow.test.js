@@ -282,13 +282,13 @@ describe('Story 2.7 non-blocking flow behavior', () => {
     fireEvent.changeText(screen.getByTestId('add-price-product-name-input'), 'Draft Name');
     fireEvent.changeText(screen.getByTestId('add-price-value-input'), '4.99');
 
-    await triggerMockBlur();
-    await triggerMockFocus();
+    screen.unmount();
 
+    const remountedScreen = render(React.createElement(AddEditPriceFeatureScreen));
     await waitFor(() =>
-      expect(screen.getByTestId('add-price-product-name-input').props.value).toBe('Milk')
+      expect(remountedScreen.getByTestId('add-price-product-name-input').props.value).toBe('Milk')
     );
-    expect(screen.getByTestId('add-price-value-input').props.value).toBe('3.49');
+    expect(remountedScreen.getByTestId('add-price-value-input').props.value).toBe('3.49');
   });
 
   it('ignores stale recent scan failures after a newer success (AC2)', async () => {

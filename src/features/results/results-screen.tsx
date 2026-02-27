@@ -29,6 +29,7 @@ import {
   SHOPPING_LIST_QUANTITY_MAX,
 } from '../../db/validation/shopping-list';
 import { recordCompletedScanToResults } from '../scan/scan-performance';
+import { guardResultsRouteContext } from '../scan/guards/route-context-guard';
 import { recordCompletedResultsRefreshMeasurement } from './results-refresh-performance';
 import { spacing } from '../../theme/tokens';
 
@@ -44,14 +45,6 @@ type ResultsScreenState =
 
 type FrameHandle = ReturnType<typeof setTimeout>;
 const ADD_TO_LIST_SUCCESS_DURATION_MS = 2000;
-
-function getParamString(value: string | string[] | undefined): string | undefined {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
-}
 
 function formatPriceCents(priceCents: number): string {
   return `$${(priceCents / 100).toFixed(2)}`;
@@ -92,8 +85,15 @@ export function ResultsFeatureScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<ResultsRouteParams>();
-  const barcode = getParamString(params.barcode)?.trim();
-  const source = getParamString(params.source);
+  const rawBarcodeParam = Array.isArray(params.barcode) ? params.barcode[0] : params.barcode;
+  const rawSourceParam = Array.isArray(params.source) ? params.source[0] : params.source;
+  const routeGuard = useMemo(
+    () => guardResultsRouteContext({ barcode: rawBarcodeParam }),
+    [rawBarcodeParam]
+  );
+  const barcode = routeGuard.decision === 'allow' ? routeGuard.context.barcode : undefined;
+  const source = rawSourceParam;
+  const redirectTarget = routeGuard.decision === 'redirect' ? routeGuard.target : undefined;
   const [screenState, setScreenState] = useState<ResultsScreenState>({ status: 'loading' });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshErrorMessage, setRefreshErrorMessage] = useState<string | null>(null);
@@ -109,6 +109,15 @@ export function ResultsFeatureScreen() {
   const rowNavigationLatchRef = useRef<{ storeId: number; atMs: number } | null>(null);
   const scanPerformanceFrameRef = useRef<FrameHandle | null>(null);
   const addToListMessageTimerRef = useRef<FrameHandle | null>(null);
+
+  const navigateToScanGuardTarget = useCallback(() => {
+    if (typeof router.replace === 'function') {
+      router.replace('/scan');
+      return;
+    }
+
+    router.push('/scan');
+  }, [router]);
 
   const sortedStores = useMemo(() => {
     if (screenState.status !== 'ready') {
@@ -142,6 +151,16 @@ export function ResultsFeatureScreen() {
     const count = sortedStores.length;
     return `${count} active store${count === 1 ? '' : 's'}`;
   }, [screenState, sortedStores]);
+
+  useEffect(() => {
+    if (routeGuard.decision !== 'redirect') {
+      return;
+    }
+
+    if (redirectTarget === '/scan') {
+      navigateToScanGuardTarget();
+    }
+  }, [routeGuard.decision, redirectTarget, navigateToScanGuardTarget]);
 
   useEffect(() => {
     return () => {
@@ -242,10 +261,6 @@ export function ResultsFeatureScreen() {
       latestReadyBarcodeRef.current = null;
       setIsRefreshing(false);
       setRefreshErrorMessage(null);
-      setScreenState({
-        status: 'error',
-        message: 'Missing barcode context. Return to Scan and open Results again.',
-      });
       return;
     }
 
@@ -317,6 +332,10 @@ export function ResultsFeatureScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      if (routeGuard.decision !== 'allow') {
+        return undefined;
+      }
+
       rowNavigationLatchRef.current = null;
       isFocusedRef.current = true;
       focusedBarcodeRef.current = barcode ?? null;
@@ -325,7 +344,7 @@ export function ResultsFeatureScreen() {
       return () => {
         isFocusedRef.current = false;
       };
-    }, [barcode, loadResults])
+    }, [routeGuard.decision, barcode, loadResults])
   );
 
   useEffect(() => {
@@ -344,6 +363,10 @@ export function ResultsFeatureScreen() {
   }, [barcode, loadResults]);
 
   function openAddEditFlow(row: ResultsStorePriceRow) {
+    if (!barcode) {
+      return;
+    }
+
     const lastNavigation = rowNavigationLatchRef.current;
     const now = Date.now();
     if (
@@ -500,7 +523,25 @@ export function ResultsFeatureScreen() {
             </Modal>
           ) : null}
 
-          <Surface variant="subtle">
+          {routeGuard.decision === 'redirect' ? (
+            <Surface variant="subtle">
+              <View style={styles.centerState}>
+                <Text variant="headline">Taking you back to Scan...</Text>
+                <Text variant="footnote" tone="secondary">
+                  Results requires a barcode from the Scan flow.
+                </Text>
+                <Button
+                  variant="secondary"
+                  accessibilityLabel="Go to Scan"
+                  onPress={navigateToScanGuardTarget}
+                  testID="results-guard-scan-button"
+                >
+                  Go to Scan
+                </Button>
+              </View>
+            </Surface>
+          ) : (
+            <Surface variant="subtle">
             <Text variant="headline">Store prices</Text>
             <Text variant="caption" tone="secondary" style={styles.sectionLead}>
               Tap Missing to add a price, or tap an existing price to update it.
@@ -553,16 +594,6 @@ export function ResultsFeatureScreen() {
                 >
                   Retry
                 </Button>
-                {!barcode ? (
-                  <Button
-                    variant="secondary"
-                    accessibilityLabel="Return to Scan"
-                    onPress={() => router.push('/scan')}
-                    testID="results-scan-button"
-                  >
-                    Go to Scan
-                  </Button>
-                ) : null}
               </View>
             ) : null}
 
@@ -607,7 +638,8 @@ export function ResultsFeatureScreen() {
                 })}
               </View>
             ) : null}
-          </Surface>
+            </Surface>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
