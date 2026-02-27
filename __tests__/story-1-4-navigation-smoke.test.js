@@ -136,6 +136,22 @@ jest.mock('../src/db/repositories/shopping-list-repository', () => ({
   getShoppingListItem: jest.fn(),
 }));
 
+jest.mock('../src/db/repositories/product-repository', () => ({
+  listProducts: jest.fn(() => new Promise(() => {})),
+  createProduct: jest.fn(),
+  updateProductName: jest.fn(),
+  setProductActive: jest.fn(),
+}));
+
+jest.mock('../src/db/repositories/pricing-repository', () => ({
+  saveStorePrice: jest.fn(),
+  getResultsByBarcodeAcrossActiveStores: jest.fn().mockResolvedValue({
+    barcode: '0123456789012',
+    productName: null,
+    stores: [],
+  }),
+}));
+
 jest.mock('expo-camera', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -174,6 +190,7 @@ function getPrimaryRouteMap(routerRoot = 'app') {
     '(tabs)/stores': require(`../${routerRoot}/(tabs)/stores`).default,
     '(tabs)/scan': require(`../${routerRoot}/(tabs)/scan`).default,
     '(tabs)/shopping-list': require(`../${routerRoot}/(tabs)/shopping-list`).default,
+    '(tabs)/products': require(`../${routerRoot}/(tabs)/products`).default,
     results: require(`../${routerRoot}/results`).default,
     'add-price': require(`../${routerRoot}/add-price`).default,
   };
@@ -245,6 +262,11 @@ describe('Story 1.4 app shell navigation scaffold', () => {
           'Shopping',
           '/shopping-list',
           'Track what you plan to buy while you shop.',
+        ],
+        [
+          'Products',
+          '/products',
+          'Manage product names and prices per store.',
         ],
       ];
 

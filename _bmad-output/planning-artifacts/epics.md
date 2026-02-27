@@ -479,14 +479,14 @@ Users have a clean, intentional navigation model and cannot reach Results withou
 ### Story 4.1: Primary Navigation Shell
 
 As a shopper,
-I want consistent primary navigation (Home, Stores, Scan, Shopping),
+I want consistent primary navigation (Home, Stores, Scan, Shopping, Products),
 So that the app feels structured and predictable.
 
 **Acceptance Criteria:**
 
 **Given** I am in the app
 **When** I view primary navigation
-**Then** I see Home, Stores, Scan, and Shopping tabs
+**Then** I see Home, Stores, Scan, Shopping, and Products tabs
 
 **Given** I use primary navigation
 **When** I navigate between tabs
@@ -530,8 +530,40 @@ So that the app feels usable and not developer-only.
 
 **Given** I am on Home
 **When** I want to begin the core flow
-**Then** I have a primary CTA to Scan and secondary access to Stores and Shopping
+**Then** I have a primary CTA to Scan and secondary access to Stores, Shopping, and Products
 
 **Given** I read Home copy
 **When** I view the text
 **Then** it aligns with the calm, minimal UX direction
+
+### Story 4.4: Products Catalog and Management
+
+As a shopper,
+I want a Products tab where I can search and maintain my products,
+So that product records used in Results and Shopping stay accurate.
+
+**Acceptance Criteria:**
+
+**Given** I open the Products tab
+**When** I view the screen
+**Then** I see a list of saved products with name, barcode, and active status
+
+**Given** I need to find a product
+**When** I enter text in search
+**Then** products are filterable by name or barcode
+
+**Given** I need to add a new product
+**When** I enter barcode and product name then save
+**Then** a new product record is created and appears in the list
+
+**Given** a product already exists
+**When** I edit the product name
+**Then** the product updates and the latest name is reflected in the list
+
+**Given** I want to hide a product from active use
+**When** I set the product to inactive
+**Then** its status becomes inactive without deleting historical data
+
+**Given** products are used in Shopping and Results
+**When** product records are updated
+**Then** Shopping and Results continue using the same shared product source of truth

@@ -134,6 +134,7 @@ export async function saveStorePrice(input: unknown): Promise<SaveStorePriceResu
       .values({
         barcode: payload.barcode,
         name: productNameToSave,
+        isActive: true,
         createdAt: now,
         updatedAt: productUpdatedAtToSave,
       })
@@ -141,6 +142,7 @@ export async function saveStorePrice(input: unknown): Promise<SaveStorePriceResu
         target: products.barcode,
         set: {
           name: productNameToSave,
+          isActive: true,
           updatedAt: productUpdatedAtToSave,
         },
       });

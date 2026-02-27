@@ -5,6 +5,7 @@ export const products = sqliteTable(
   {
     barcode: text('barcode').primaryKey(),
     name: text('name'),
+    isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
     createdAt: integer('created_at').notNull(),
     updatedAt: integer('updated_at').notNull(),
   },

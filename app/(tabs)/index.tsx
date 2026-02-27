@@ -63,6 +63,15 @@ export default function HomeTabScreen() {
               >
                 Go to Shopping
               </Button>
+
+              <Button
+                variant="secondary"
+                onPress={() => router.push('/products')}
+                accessibilityLabel="Go to Products"
+                testID="home-secondary-cta-products"
+              >
+                Go to Products
+              </Button>
             </View>
           </Surface>
         </View>

@@ -64,7 +64,7 @@ describe('Story 4.1 primary navigation shell', () => {
     delete process.env.EXPO_PUBLIC_ENABLE_SHOPPING_LIST;
   });
 
-  it('defines Home, Stores, Scan, and Shopping tabs in order without Results (AC1, AC2)', () => {
+  it('defines Home, Stores, Scan, Shopping, and Products tabs in order without Results (AC1, AC2)', () => {
     const React = require('react');
     const { TAB_ICON_NAMES, default: TabsLayoutRoute } = require('../app/(tabs)/_layout');
     const routeElement = TabsLayoutRoute();
@@ -74,8 +74,8 @@ describe('Story 4.1 primary navigation shell', () => {
     const tabIconFunctions = tabScreens.map((screen) => screen.props.options?.tabBarIcon);
     const iconContracts = tabNames.map((tabName) => TAB_ICON_NAMES[tabName]);
 
-    expect(tabNames).toEqual(['index', 'stores', 'scan', 'shopping-list']);
-    expect(tabTitles).toEqual(['Home', 'Stores', 'Scan', 'Shopping']);
+    expect(tabNames).toEqual(['index', 'stores', 'scan', 'shopping-list', 'products']);
+    expect(tabTitles).toEqual(['Home', 'Stores', 'Scan', 'Shopping', 'Products']);
     expect(tabNames).not.toContain('results');
     expect(tabIconFunctions.every((iconFn) => typeof iconFn === 'function')).toBe(true);
     expect(iconContracts).toEqual([
@@ -83,6 +83,7 @@ describe('Story 4.1 primary navigation shell', () => {
       { active: 'business', inactive: 'business-outline' },
       { active: 'scan', inactive: 'scan-outline' },
       { active: 'cart', inactive: 'cart-outline' },
+      { active: 'cube', inactive: 'cube-outline' },
     ]);
   });
 

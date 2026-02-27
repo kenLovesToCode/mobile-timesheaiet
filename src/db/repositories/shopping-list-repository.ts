@@ -67,6 +67,7 @@ export async function addOrUpdateShoppingListItem(
         .values({
           barcode: payload.barcode,
           name: normalizedProductName ?? null,
+          isActive: true,
           createdAt: now,
           updatedAt: now,
         })
@@ -81,11 +82,12 @@ export async function addOrUpdateShoppingListItem(
     if (normalizedProductName && productRow?.name !== normalizedProductName) {
       await tx
         .update(products)
-        .set({ name: normalizedProductName, updatedAt: now })
+        .set({ name: normalizedProductName, isActive: true, updatedAt: now })
         .where(eq(products.barcode, payload.barcode));
       productRow = {
         barcode: payload.barcode,
         name: normalizedProductName,
+        isActive: true,
         createdAt: productRow?.createdAt ?? now,
         updatedAt: now,
       };
@@ -154,6 +156,7 @@ export async function addOrIncrementShoppingListItem(
         .values({
           barcode: payload.barcode,
           name: normalizedProductName ?? null,
+          isActive: true,
           createdAt: now,
           updatedAt: now,
         })
@@ -168,11 +171,12 @@ export async function addOrIncrementShoppingListItem(
     if (normalizedProductName && productRow?.name !== normalizedProductName) {
       await tx
         .update(products)
-        .set({ name: normalizedProductName, updatedAt: now })
+        .set({ name: normalizedProductName, isActive: true, updatedAt: now })
         .where(eq(products.barcode, payload.barcode));
       productRow = {
         barcode: payload.barcode,
         name: normalizedProductName,
+        isActive: true,
         createdAt: productRow?.createdAt ?? now,
         updatedAt: now,
       };

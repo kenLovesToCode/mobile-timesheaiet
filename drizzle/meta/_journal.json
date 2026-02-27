@@ -43,6 +43,13 @@
       "when": 1772220000000,
       "tag": "0005_calm_shopping_list_product_name",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1772251200000,
+      "tag": "0006_product_active_flag",
+      "breakpoints": true
     }
   ]
 }
