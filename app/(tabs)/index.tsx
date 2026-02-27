@@ -27,14 +27,14 @@ export default function HomeTabScreen() {
               PriceTag
             </Text>
             <Text variant="body" selectable style={{ marginTop: spacing.xs }}>
-              Scan prices quickly, compare stores, and keep your shopping plans organized.
+              Scan fast, compare prices, and keep your shopping list focused.
             </Text>
           </Surface>
 
           <Surface variant="subtle">
             <Text variant="headline">Start Scanning</Text>
             <Text variant="footnote" tone="secondary" style={{ marginTop: spacing.xs }}>
-              Use Scan as your primary flow and switch tabs for store setup or shopping prep.
+              Start with Scan, then jump to Stores or Shopping when needed.
             </Text>
 
             <View style={{ marginTop: spacing.md, gap: spacing.sm }}>

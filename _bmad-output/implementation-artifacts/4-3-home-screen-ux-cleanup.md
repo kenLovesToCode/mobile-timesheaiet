@@ -1,6 +1,6 @@
 # Story 4.3: Home Screen UX Cleanup
 
-Status: backlog
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -18,10 +18,10 @@ so that the app feels usable and not developer-only.
 
 ## Tasks / Subtasks
 
-- [ ] Remove debug route list from Home
-- [ ] Add primary CTA to Scan and secondary links to Stores/Shopping
-- [ ] Update copy to match calm, minimal tone
-- [ ] Add tests/evidence for Home content and primary CTA
+- [x] Confirm debug route list is absent on Home (no code change needed in this story)
+- [x] Confirm primary Scan CTA and secondary links to Stores/Shopping are present (no code change needed in this story)
+- [x] Update copy to match calm, minimal tone
+- [x] Add tests/evidence for Home content and primary CTA
 
 ## Dev Notes
 
@@ -41,7 +41,7 @@ so that the app feels usable and not developer-only.
 
 ### File Structure Requirements
 
-- Route: `app/index.tsx`
+- Route: `app/(tabs)/index.tsx`
 - Feature UI (if needed): `src/features/home/*`
 
 ### Testing Requirements
@@ -54,3 +54,50 @@ so that the app feels usable and not developer-only.
 - Epics: `_bmad-output/planning-artifacts/epics.md` (Epic 4, Story 4.3)
 - UX: `_bmad-output/planning-artifacts/ux-design-specification.md`
 - Project context rules: `_bmad-output/project-context.md`
+
+## Dev Agent Record
+
+### Agent Model Used
+
+GPT-5 Codex
+
+### Debug Log References
+
+- Updated Home copy in `app/(tabs)/index.tsx` while preserving required CTA test IDs.
+- Verified `app-production/(tabs)/index.tsx` still re-exports the Home implementation (no update required).
+- Added Story 4.3 regression coverage in `__tests__/story-4-3-home-screen-ux-cleanup.test.js`.
+- Executed: `npx jest __tests__/story-4-3-home-screen-ux-cleanup.test.js --runInBand --watchman=false`.
+- Executed: `npm run test:navigation-smoke`.
+- Executed: `npm run test:navigation-smoke:production-router`.
+- Executed: `npm run typecheck`.
+- Executed: `npm run lint`.
+
+### Completion Notes List
+
+- Home screen maintains product-facing content only and no debug route list content.
+- Home CTA behavior verified with one primary Scan CTA and secondary Stores/Shopping CTAs.
+- Home copy tightened to calm/minimal scan-first wording.
+- Regression tests confirm expected CTAs and navigation paths for both router roots.
+
+## File List
+
+- `app/(tabs)/index.tsx`
+- `__tests__/story-4-3-home-screen-ux-cleanup.test.js`
+- `_bmad-output/implementation-artifacts/4-3-home-screen-ux-cleanup.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Senior Developer Review (AI)
+
+Date: 2026-02-27
+Reviewer: ken
+Outcome: Approved with fixes applied
+
+- Fixed story over-claim by changing two completed implementation tasks into validation tasks that match actual git evidence.
+- Fixed technical requirement route path to match repository structure (`app/(tabs)/index.tsx`).
+- Fixed File List traceability by removing `app-production/(tabs)/index.tsx` because no git change exists for that file.
+- Re-ran targeted regression test: `npx jest __tests__/story-4-3-home-screen-ux-cleanup.test.js --runInBand --watchman=false` (pass).
+
+## Change Log
+
+- 2026-02-27: Implemented Story 4.3 Home UX cleanup and moved status to `review`.
+- 2026-02-27: Senior dev review auto-fixes applied; status moved to `done` and story evidence aligned with git changes.
