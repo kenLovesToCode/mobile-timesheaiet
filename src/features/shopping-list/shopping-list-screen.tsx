@@ -14,6 +14,7 @@ import {
   type ShoppingListItemRecord,
   toggleShoppingListItemChecked,
 } from '../../db/repositories/shopping-list-repository';
+import { SHOPPING_LIST_QUANTITY_MAX } from '../../db/validation/shopping-list';
 import { radii, spacing, touchTargets } from '../../theme/tokens';
 
 type ShoppingListState =
@@ -25,8 +26,15 @@ export function ShoppingListFeatureScreen() {
   const theme = useTheme();
   const router = useRouter();
   const [screenState, setScreenState] = useState<ShoppingListState>({ status: 'loading' });
+  const [writeErrorMessage, setWriteErrorMessage] = useState<string | null>(null);
   const isActiveRef = useRef(false);
   const latestLoadIdRef = useRef(0);
+  const quantityTargetsRef = useRef(new Map<string, number>());
+  const quantitySyncingRef = useRef(new Set<string>());
+  const checkedTargetsRef = useRef(new Map<string, boolean>());
+  const checkedSyncingRef = useRef(new Set<string>());
+  const optimisticQuantityRef = useRef(new Map<string, number>());
+  const optimisticCheckedRef = useRef(new Map<string, boolean>());
 
   const loadItems = useCallback(async () => {
     const requestId = latestLoadIdRef.current + 1;
@@ -38,6 +46,14 @@ export function ShoppingListFeatureScreen() {
       if (!isActiveRef.current || requestId !== latestLoadIdRef.current) {
         return;
       }
+      const quantityByBarcode = new Map<string, number>();
+      const checkedByBarcode = new Map<string, boolean>();
+      for (const item of items) {
+        quantityByBarcode.set(item.barcode, item.quantity);
+        checkedByBarcode.set(item.barcode, item.isChecked);
+      }
+      optimisticQuantityRef.current = quantityByBarcode;
+      optimisticCheckedRef.current = checkedByBarcode;
       setScreenState({ status: 'ready', items });
     } catch (error) {
       if (!isActiveRef.current || requestId !== latestLoadIdRef.current) {
@@ -66,45 +82,112 @@ export function ShoppingListFeatureScreen() {
     []
   );
 
-  const handleQuantityChange = useCallback(
-    async (item: ShoppingListItemRecord, delta: number) => {
-      const nextQuantity = item.quantity + delta;
-      if (nextQuantity < 1) {
+  const flushQuantityUpdates = useCallback(
+    async (barcode: string) => {
+      if (quantitySyncingRef.current.has(barcode)) {
         return;
       }
 
+      quantitySyncingRef.current.add(barcode);
+
+      try {
+        while (true) {
+          const target = quantityTargetsRef.current.get(barcode);
+          if (target == null) {
+            break;
+          }
+
+          quantityTargetsRef.current.delete(barcode);
+          await setShoppingListItemQuantity({ barcode, quantity: target });
+        }
+      } catch (error) {
+        quantityTargetsRef.current.delete(barcode);
+        console.error('[shopping-list] Failed to update quantity', error);
+        setWriteErrorMessage('Could not save quantity change. Restored the last saved values.');
+        void loadItems();
+      } finally {
+        quantitySyncingRef.current.delete(barcode);
+        if (quantityTargetsRef.current.has(barcode)) {
+          void flushQuantityUpdates(barcode);
+        }
+      }
+    },
+    [loadItems]
+  );
+
+  const flushCheckedUpdates = useCallback(
+    async (barcode: string) => {
+      if (checkedSyncingRef.current.has(barcode)) {
+        return;
+      }
+
+      checkedSyncingRef.current.add(barcode);
+
+      try {
+        while (true) {
+          const target = checkedTargetsRef.current.get(barcode);
+          if (target == null) {
+            break;
+          }
+
+          checkedTargetsRef.current.delete(barcode);
+          await toggleShoppingListItemChecked({ barcode, isChecked: target });
+        }
+      } catch (error) {
+        checkedTargetsRef.current.delete(barcode);
+        console.error('[shopping-list] Failed to toggle checked state', error);
+        setWriteErrorMessage('Could not update checked state. Restored the last saved values.');
+        void loadItems();
+      } finally {
+        checkedSyncingRef.current.delete(barcode);
+        if (checkedTargetsRef.current.has(barcode)) {
+          void flushCheckedUpdates(barcode);
+        }
+      }
+    },
+    [loadItems]
+  );
+
+  const handleQuantityChange = useCallback(
+    (item: ShoppingListItemRecord, delta: number) => {
+      const currentQuantity =
+        optimisticQuantityRef.current.get(item.barcode) ?? item.quantity;
+      const nextQuantity = Math.max(
+        1,
+        Math.min(SHOPPING_LIST_QUANTITY_MAX, currentQuantity + delta)
+      );
+      if (nextQuantity === currentQuantity) {
+        return;
+      }
+
+      setWriteErrorMessage(null);
+      optimisticQuantityRef.current.set(item.barcode, nextQuantity);
       updateItemState(item.barcode, (current) => ({
         ...current,
         quantity: nextQuantity,
       }));
-
-      try {
-        await setShoppingListItemQuantity({ barcode: item.barcode, quantity: nextQuantity });
-      } catch (error) {
-        console.error('[shopping-list] Failed to update quantity', error);
-        void loadItems();
-      }
+      quantityTargetsRef.current.set(item.barcode, nextQuantity);
+      void flushQuantityUpdates(item.barcode);
     },
-    [loadItems, updateItemState]
+    [flushQuantityUpdates, updateItemState]
   );
 
   const handleToggleChecked = useCallback(
-    async (item: ShoppingListItemRecord) => {
-      const nextChecked = !item.isChecked;
+    (item: ShoppingListItemRecord) => {
+      const currentChecked =
+        optimisticCheckedRef.current.get(item.barcode) ?? item.isChecked;
+      const nextChecked = !currentChecked;
 
+      setWriteErrorMessage(null);
+      optimisticCheckedRef.current.set(item.barcode, nextChecked);
       updateItemState(item.barcode, (current) => ({
         ...current,
         isChecked: nextChecked,
       }));
-
-      try {
-        await toggleShoppingListItemChecked({ barcode: item.barcode, isChecked: nextChecked });
-      } catch (error) {
-        console.error('[shopping-list] Failed to toggle checked state', error);
-        void loadItems();
-      }
+      checkedTargetsRef.current.set(item.barcode, nextChecked);
+      void flushCheckedUpdates(item.barcode);
     },
-    [loadItems, updateItemState]
+    [flushCheckedUpdates, updateItemState]
   );
 
   useFocusEffect(
@@ -142,6 +225,16 @@ export function ShoppingListFeatureScreen() {
             <Text variant="caption" tone="secondary" style={styles.sectionLead}>
               Quantities update as you add more items from Results.
             </Text>
+            {writeErrorMessage ? (
+              <Text
+                variant="caption"
+                tone="danger"
+                style={styles.sectionLead}
+                testID="shopping-list-write-error"
+              >
+                {writeErrorMessage}
+              </Text>
+            ) : null}
 
             {screenState.status === 'loading' ? (
               <View style={styles.centerState}>
@@ -192,6 +285,7 @@ export function ShoppingListFeatureScreen() {
                   const subtitle = `Barcode: ${item.barcode}`;
                   const meta = item.isChecked ? 'In cart' : 'Not in cart';
                   const decreaseDisabled = item.quantity <= 1;
+                  const increaseDisabled = item.quantity >= SHOPPING_LIST_QUANTITY_MAX;
 
                   return (
                     <ListRow
@@ -225,6 +319,7 @@ export function ShoppingListFeatureScreen() {
                             <Pressable
                               accessibilityRole="button"
                               accessibilityLabel={`Increase quantity for ${title}`}
+                              disabled={increaseDisabled}
                               onPress={() => void handleQuantityChange(item, 1)}
                               testID={`shopping-list-increase-${item.barcode}`}
                               style={({ pressed }) => [
@@ -233,7 +328,7 @@ export function ShoppingListFeatureScreen() {
                                   backgroundColor:
                                     theme.surface?.val ?? theme.background?.val,
                                   borderColor: theme.borderColor?.val,
-                                  opacity: pressed ? 0.85 : 1,
+                                  opacity: increaseDisabled ? 0.5 : pressed ? 0.85 : 1,
                                 },
                               ]}
                             >

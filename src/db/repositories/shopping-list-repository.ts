@@ -4,6 +4,7 @@ import { products, shoppingListItems } from '../schema';
 import {
   parseAddOrIncrementShoppingListItemInput,
   parseAddOrUpdateShoppingListItemInput,
+  SHOPPING_LIST_QUANTITY_MAX,
   parseShoppingListItemLookupInput,
   parseShoppingListItemQuantityInput,
   parseShoppingListItemToggleInput,
@@ -177,32 +178,22 @@ export async function addOrIncrementShoppingListItem(
       };
     }
 
-    const existingRows = await tx
-      .select()
-      .from(shoppingListItems)
-      .where(eq(shoppingListItems.productBarcode, payload.barcode))
-      .limit(1);
-
-    const existing = existingRows[0];
-    const createdAt = existing?.createdAt ?? now;
-    const isChecked = existing?.isChecked ?? false;
-    const productName = normalizedProductName ?? existing?.productName ?? null;
-    const nextQuantity = existing ? existing.quantity + payload.quantity : payload.quantity;
-
     const result = await tx
       .insert(shoppingListItems)
       .values({
         productBarcode: payload.barcode,
-        productName,
-        quantity: nextQuantity,
-        isChecked,
-        createdAt,
+        productName: normalizedProductName ?? null,
+        quantity: payload.quantity,
+        isChecked: false,
+        createdAt: now,
         updatedAt: now,
       })
       .onConflictDoUpdate({
         target: shoppingListItems.productBarcode,
         set: {
-          quantity: nextQuantity,
+          quantity: sql<number>`min(${SHOPPING_LIST_QUANTITY_MAX}, ${
+            shoppingListItems.quantity
+          } + ${payload.quantity})`,
           updatedAt: now,
           ...(normalizedProductName ? { productName: normalizedProductName } : {}),
         },

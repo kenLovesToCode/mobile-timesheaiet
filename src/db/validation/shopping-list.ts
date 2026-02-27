@@ -1,5 +1,7 @@
 import * as z from 'zod';
 
+export const SHOPPING_LIST_QUANTITY_MAX = 999;
+
 const barcodeSchema = z
   .string()
   .trim()
@@ -10,7 +12,7 @@ const quantitySchema = z
   .number()
   .int('quantity must be a whole number')
   .min(1, 'quantity must be at least 1')
-  .max(999, 'quantity is too large');
+  .max(SHOPPING_LIST_QUANTITY_MAX, 'quantity is too large');
 
 const productNameSchema = z
   .string()

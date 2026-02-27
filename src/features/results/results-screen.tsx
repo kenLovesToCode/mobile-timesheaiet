@@ -24,7 +24,10 @@ import {
   type ResultsStorePriceRow,
 } from '../../db/repositories/pricing-repository';
 import { addOrIncrementShoppingListItem } from '../../db/repositories/shopping-list-repository';
-import { ShoppingListValidationError } from '../../db/validation/shopping-list';
+import {
+  ShoppingListValidationError,
+  SHOPPING_LIST_QUANTITY_MAX,
+} from '../../db/validation/shopping-list';
 import { recordCompletedScanToResults } from '../scan/scan-performance';
 import { recordCompletedResultsRefreshMeasurement } from './results-refresh-performance';
 import { spacing } from '../../theme/tokens';
@@ -189,7 +192,7 @@ export function ResultsFeatureScreen() {
     if (!Number.isFinite(quantity) || quantity < 1) {
       return { error: 'Quantity must be at least 1.' };
     }
-    if (quantity > 999) {
+    if (quantity > SHOPPING_LIST_QUANTITY_MAX) {
       return { error: 'Quantity is too large.' };
     }
     return { quantity };
