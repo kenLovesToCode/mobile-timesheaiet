@@ -19,13 +19,16 @@
     "lint": "expo lint"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
     "@tamagui/animations-react-native": "2.0.0-rc.17",
     "@tamagui/config": "2.0.0-rc.17",
     "@tamagui/font-inter": "2.0.0-rc.17",
     "@tamagui/native": "2.0.0-rc.17",
     "drizzle-orm": "^0.45.1",
     "expo": "55.0.0-preview.12",
+    "expo-asset": "~55.0.8",
     "expo-camera": "~55.0.7",
+    "expo-font": "~55.0.4",
     "expo-haptics": "~55.0.7",
     "expo-linking": "~55.0.6",
     "expo-router": "55.0.0-preview.9",

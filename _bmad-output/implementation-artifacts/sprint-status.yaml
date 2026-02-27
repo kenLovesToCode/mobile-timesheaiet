@@ -64,8 +64,8 @@ development_status:
   3-3-check-items-in-cart-and-view-list: done
   epic-3-retrospective: done
 
-  epic-4: in-progress
+  epic-4: done
   4-1-primary-navigation-shell: done
   4-2-route-guarding-for-results-and-add-price: done
   4-3-home-screen-ux-cleanup: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done

@@ -66,15 +66,24 @@ describe('Story 4.1 primary navigation shell', () => {
 
   it('defines Home, Stores, Scan, and Shopping tabs in order without Results (AC1, AC2)', () => {
     const React = require('react');
-    const TabsLayoutRoute = require('../app/(tabs)/_layout').default;
+    const { TAB_ICON_NAMES, default: TabsLayoutRoute } = require('../app/(tabs)/_layout');
     const routeElement = TabsLayoutRoute();
     const tabScreens = React.Children.toArray(routeElement.props.children);
     const tabNames = tabScreens.map((screen) => screen.props.name);
     const tabTitles = tabScreens.map((screen) => screen.props.options?.title);
+    const tabIconFunctions = tabScreens.map((screen) => screen.props.options?.tabBarIcon);
+    const iconContracts = tabNames.map((tabName) => TAB_ICON_NAMES[tabName]);
 
     expect(tabNames).toEqual(['index', 'stores', 'scan', 'shopping-list']);
     expect(tabTitles).toEqual(['Home', 'Stores', 'Scan', 'Shopping']);
     expect(tabNames).not.toContain('results');
+    expect(tabIconFunctions.every((iconFn) => typeof iconFn === 'function')).toBe(true);
+    expect(iconContracts).toEqual([
+      { active: 'home', inactive: 'home-outline' },
+      { active: 'business', inactive: 'business-outline' },
+      { active: 'scan', inactive: 'scan-outline' },
+      { active: 'cart', inactive: 'cart-outline' },
+    ]);
   });
 
   it('routes to shopping list feature when feature is enabled (AC3)', () => {
