@@ -166,13 +166,20 @@ const routerTesting = require('expo-router/testing-library');
 const { renderRouter, testRouter } = routerTesting;
 const { __mockSafeAreaViewPropsLog } = require('react-native-safe-area-context');
 
-const RootLayout = require('../app/_layout').default;
-const IndexRoute = require('../app/index').default;
-const StoresRoute = require('../app/stores').default;
-const ScanRoute = require('../app/scan').default;
-const ResultsRoute = require('../app/results').default;
-const AddPriceRoute = require('../app/add-price').default;
-const ShoppingListRoute = require('../app/shopping-list').default;
+function getPrimaryRouteMap(routerRoot = 'app') {
+  return {
+    _layout: require(`../${routerRoot}/_layout`).default,
+    '(tabs)/_layout': require(`../${routerRoot}/(tabs)/_layout`).default,
+    '(tabs)/index': require(`../${routerRoot}/(tabs)/index`).default,
+    '(tabs)/stores': require(`../${routerRoot}/(tabs)/stores`).default,
+    '(tabs)/scan': require(`../${routerRoot}/(tabs)/scan`).default,
+    '(tabs)/shopping-list': require(`../${routerRoot}/(tabs)/shopping-list`).default,
+    results: require(`../${routerRoot}/results`).default,
+    'add-price': require(`../${routerRoot}/add-price`).default,
+  };
+}
+
+const appPrimaryRouteMap = getPrimaryRouteMap('app');
 
 function withDevFlag(devFlag, callback) {
   const previousDevFlag = global.__DEV__;
@@ -213,20 +220,9 @@ describe('Story 1.4 app shell navigation scaffold', () => {
     __mockSafeAreaViewPropsLog.length = 0;
   });
 
-  it('provides mocked Expo Router navigation smoke coverage for primary routes (AC2 support)', async () => {
+  async function runPrimaryNavigationSmoke(routeMap) {
     await withDevFlagAsync(false, async () => {
-      const routerRender = renderRouter(
-        {
-          _layout: RootLayout,
-          index: IndexRoute,
-          stores: StoresRoute,
-          scan: ScanRoute,
-          results: ResultsRoute,
-          'add-price': AddPriceRoute,
-          'shopping-list': ShoppingListRoute,
-        },
-        { initialUrl: '/' }
-      );
+      const routerRender = renderRouter(routeMap, { initialUrl: '/' });
 
       expect(routerRender).toHavePathname('/');
       expect(routerTesting.screen.getByText('PriceTag')).toBeTruthy();
@@ -236,41 +232,25 @@ describe('Story 1.4 app shell navigation scaffold', () => {
 
       const routeChecks = [
         [
-          'Open Stores',
-          '/stores',
           'Stores',
+          '/stores',
           'Add stores you shop at and mark at least one as active before scanning.',
         ],
         [
-          'Open Scan',
-          '/scan',
           'Scan',
+          '/scan',
           'Camera scanning is now live with haptics and torch support.',
         ],
         [
-          'Open Results',
-          '/results',
-          'Results',
-          'Review scanned results and compare prices across stores.',
-        ],
-        [
-          'Open Add Price',
-          '/add-price',
-          'Add Price',
-          'Enter manual product pricing when scan data is unavailable.',
-        ],
-        [
-          'Open Shopping List',
+          'Shopping',
           '/shopping-list',
-          'Shopping List',
           'Track what you plan to buy while you shop.',
         ],
       ];
 
-      for (const [linkLabel, pathname, title, description] of routeChecks) {
+      for (const [linkLabel, pathname, description] of routeChecks) {
         fireEvent.press(routerTesting.screen.getByText(linkLabel));
         expect(routerRender).toHavePathname(pathname);
-        expect(routerTesting.screen.getByText(title)).toBeTruthy();
         if (pathname === '/shopping-list') {
           expect(await routerTesting.screen.findByText(description)).toBeTruthy();
         } else {
@@ -297,6 +277,9 @@ describe('Story 1.4 app shell navigation scaffold', () => {
         expect(routerRender).toHavePathname('/');
       }
 
+      expect(routerTesting.screen.queryByText('Results')).toBeNull();
+      expect(routerTesting.screen.queryByText('Add Price')).toBeNull();
+
       const safeAreaEdgeSignatures = __mockSafeAreaViewPropsLog
         .map((props) => (Array.isArray(props?.edges) ? props.edges.join(',') : null))
         .filter(Boolean);
@@ -309,17 +292,20 @@ describe('Story 1.4 app shell navigation scaffold', () => {
         })
       ).toBe(true);
     });
+  }
+
+  it('provides mocked Expo Router navigation smoke coverage for primary routes (AC2 support)', async () => {
+    await runPrimaryNavigationSmoke(appPrimaryRouteMap);
+  });
+
+  it('provides mocked navigation smoke coverage for production router root (AC2 support)', async () => {
+    const productionPrimaryRouteMap = getPrimaryRouteMap('app-production');
+    await runPrimaryNavigationSmoke(productionPrimaryRouteMap);
   });
 
   it('exercises dev-route protection in root layout by __DEV__ guard', () => {
     const rootRouteMap = {
-      _layout: RootLayout,
-      index: IndexRoute,
-      stores: StoresRoute,
-      scan: ScanRoute,
-      results: ResultsRoute,
-      'add-price': AddPriceRoute,
-      'shopping-list': ShoppingListRoute,
+      ...appPrimaryRouteMap,
       'dev/device-smoke': loadDeviceSmokeRoute(true),
     };
 

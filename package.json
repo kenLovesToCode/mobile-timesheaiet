@@ -14,6 +14,7 @@
     "build": "expo export --platform web --platform ios --platform android",
     "build:production-router": "PRICETAG_ROUTER_ROOT=app-production expo export --platform web --platform ios --platform android",
     "test:navigation-smoke": "jest __tests__/story-1-4-navigation-smoke.test.js --runInBand --watchman=false",
+    "test:navigation-smoke:production-router": "PRICETAG_ROUTER_ROOT=app-production jest __tests__/story-1-4-navigation-smoke.test.js --runInBand --watchman=false",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint"
   },
