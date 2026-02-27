@@ -127,6 +127,15 @@ jest.mock('../src/db/repositories/store-repository', () => ({
   getActiveStoreCount: jest.fn().mockResolvedValue(0),
 }));
 
+jest.mock('../src/db/repositories/shopping-list-repository', () => ({
+  listShoppingListItems: jest.fn().mockResolvedValue([]),
+  addOrUpdateShoppingListItem: jest.fn(),
+  addOrIncrementShoppingListItem: jest.fn(),
+  setShoppingListItemQuantity: jest.fn(),
+  toggleShoppingListItemChecked: jest.fn(),
+  getShoppingListItem: jest.fn(),
+}));
+
 jest.mock('expo-camera', () => {
   const React = require('react');
   const { View } = require('react-native');
@@ -254,7 +263,7 @@ describe('Story 1.4 app shell navigation scaffold', () => {
           'Open Shopping List',
           '/shopping-list',
           'Shopping List',
-          'Track planned purchases and current cart state.',
+          'Track what you plan to buy while you shop.',
         ],
       ];
 
@@ -262,7 +271,11 @@ describe('Story 1.4 app shell navigation scaffold', () => {
         fireEvent.press(routerTesting.screen.getByText(linkLabel));
         expect(routerRender).toHavePathname(pathname);
         expect(routerTesting.screen.getByText(title)).toBeTruthy();
-        expect(routerTesting.screen.getByText(description)).toBeTruthy();
+        if (pathname === '/shopping-list') {
+          expect(await routerTesting.screen.findByText(description)).toBeTruthy();
+        } else {
+          expect(routerTesting.screen.getByText(description)).toBeTruthy();
+        }
 
         if (pathname === '/stores') {
           expect(await routerTesting.screen.findByText('No stores saved yet.')).toBeTruthy();
@@ -271,6 +284,12 @@ describe('Story 1.4 app shell navigation scaffold', () => {
         if (pathname === '/scan') {
           expect(
             await routerTesting.screen.findByText('Activate a store to start scanning')
+          ).toBeTruthy();
+        }
+
+        if (pathname === '/shopping-list') {
+          expect(
+            await routerTesting.screen.findByText('No items in your list yet.')
           ).toBeTruthy();
         }
 

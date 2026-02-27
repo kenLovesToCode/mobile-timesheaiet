@@ -109,12 +109,14 @@ export function AddEditPriceFeatureScreen() {
   const [storeContextNotice, setStoreContextNotice] = useState<string | null>(null);
   const [verifiedStoreName, setVerifiedStoreName] = useState<string | null>(null);
   const [isResolvingStoreContext, setIsResolvingStoreContext] = useState(hasValidStoreId);
+  const [storeContextRequestId, setStoreContextRequestId] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [canonicalProductName, setCanonicalProductName] = useState<string | null>(null);
   const [isResolvingProductContext, setIsResolvingProductContext] = useState(false);
   const [didProductContextLookupFail, setDidProductContextLookupFail] = useState(false);
   const saveInFlightRef = useRef(false);
   const productNameEditedRef = useRef(false);
+  const hasInitializedRef = useRef(false);
 
   const hasStoreContextIssue = !hasValidStoreId || (!isResolvingStoreContext && !verifiedStoreName);
   const isMissingRequiredContext = !barcode || hasMalformedNumericRouteParams || hasStoreContextIssue;
@@ -158,14 +160,25 @@ export function AddEditPriceFeatureScreen() {
     resetFormState();
   }, [resetFormState, routeSignature]);
 
+  const bumpStoreContext = useCallback(() => {
+    if (hasValidStoreId) {
+      setStoreContextRequestId((prev) => prev + 1);
+    }
+  }, [hasValidStoreId]);
+
   useFocusEffect(
     useCallback(() => {
       resetFormState();
+      if (hasInitializedRef.current) {
+        bumpStoreContext();
+      } else {
+        hasInitializedRef.current = true;
+      }
 
       return () => {
         resetFormState();
       };
-    }, [resetFormState])
+    }, [resetFormState, bumpStoreContext])
   );
 
   useEffect(() => {
@@ -231,7 +244,7 @@ export function AddEditPriceFeatureScreen() {
     return () => {
       isMounted = false;
     };
-  }, [hasValidStoreId, parsedStoreId, storeName]);
+  }, [hasValidStoreId, parsedStoreId, storeName, storeContextRequestId]);
 
   useEffect(() => {
     let isMounted = true;

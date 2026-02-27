@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from 'tamagui';
 
 import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
 import { ListRow } from '../../components/ui/list-row';
 import { Surface } from '../../components/ui/surface';
 import { Text } from '../../components/ui/text';
@@ -13,6 +23,8 @@ import {
   type ResultsLookupRecord,
   type ResultsStorePriceRow,
 } from '../../db/repositories/pricing-repository';
+import { addOrIncrementShoppingListItem } from '../../db/repositories/shopping-list-repository';
+import { ShoppingListValidationError } from '../../db/validation/shopping-list';
 import { recordCompletedScanToResults } from '../scan/scan-performance';
 import { recordCompletedResultsRefreshMeasurement } from './results-refresh-performance';
 import { spacing } from '../../theme/tokens';
@@ -28,6 +40,7 @@ type ResultsScreenState =
   | { status: 'ready'; data: ResultsLookupRecord };
 
 type FrameHandle = ReturnType<typeof setTimeout>;
+const ADD_TO_LIST_SUCCESS_DURATION_MS = 2000;
 
 function getParamString(value: string | string[] | undefined): string | undefined {
   if (Array.isArray(value)) {
@@ -73,6 +86,7 @@ function cancelScheduled(handle: FrameHandle | null): void {
 
 export function ResultsFeatureScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<ResultsRouteParams>();
   const barcode = getParamString(params.barcode)?.trim();
@@ -80,12 +94,18 @@ export function ResultsFeatureScreen() {
   const [screenState, setScreenState] = useState<ResultsScreenState>({ status: 'loading' });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshErrorMessage, setRefreshErrorMessage] = useState<string | null>(null);
+  const [quantitySheetOpen, setQuantitySheetOpen] = useState(false);
+  const [quantityInput, setQuantityInput] = useState('1');
+  const [addToListError, setAddToListError] = useState<string | null>(null);
+  const [addToListSuccess, setAddToListSuccess] = useState<string | null>(null);
+  const [isAddingToList, setIsAddingToList] = useState(false);
   const latestRequestIdRef = useRef(0);
   const latestReadyBarcodeRef = useRef<string | null>(null);
   const focusedBarcodeRef = useRef<string | null>(null);
   const isFocusedRef = useRef(false);
   const rowNavigationLatchRef = useRef<{ storeId: number; atMs: number } | null>(null);
   const scanPerformanceFrameRef = useRef<FrameHandle | null>(null);
+  const addToListMessageTimerRef = useRef<FrameHandle | null>(null);
 
   const sortedStores = useMemo(() => {
     if (screenState.status !== 'ready') {
@@ -119,6 +139,99 @@ export function ResultsFeatureScreen() {
     const count = sortedStores.length;
     return `${count} active store${count === 1 ? '' : 's'}`;
   }, [screenState, sortedStores]);
+
+  useEffect(() => {
+    return () => {
+      cancelScheduled(addToListMessageTimerRef.current);
+      addToListMessageTimerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    resetAddToListFeedback();
+  }, [barcode]);
+
+  function resetAddToListFeedback() {
+    setAddToListError(null);
+    setAddToListSuccess(null);
+    cancelScheduled(addToListMessageTimerRef.current);
+    addToListMessageTimerRef.current = null;
+  }
+
+  function scheduleAddToListMessageClear() {
+    cancelScheduled(addToListMessageTimerRef.current);
+    addToListMessageTimerRef.current = setTimeout(() => {
+      setAddToListSuccess(null);
+      addToListMessageTimerRef.current = null;
+    }, ADD_TO_LIST_SUCCESS_DURATION_MS);
+  }
+
+  function openQuantitySheet() {
+    setQuantitySheetOpen(true);
+    setQuantityInput('1');
+    resetAddToListFeedback();
+  }
+
+  function closeQuantitySheet() {
+    setQuantitySheetOpen(false);
+    setAddToListError(null);
+  }
+
+  function parseQuantityInput(value: string): { quantity?: number; error?: string } {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return { error: 'Quantity is required.' };
+    }
+    if (!/^\d+$/.test(trimmed)) {
+      return { error: 'Enter a whole number.' };
+    }
+    const quantity = Number.parseInt(trimmed, 10);
+    if (!Number.isFinite(quantity) || quantity < 1) {
+      return { error: 'Quantity must be at least 1.' };
+    }
+    if (quantity > 999) {
+      return { error: 'Quantity is too large.' };
+    }
+    return { quantity };
+  }
+
+  async function handleAddToList() {
+    if (!barcode || isAddingToList) {
+      return;
+    }
+
+    const parsed = parseQuantityInput(quantityInput);
+    if (!parsed.quantity) {
+      setAddToListError(parsed.error ?? 'Enter a valid quantity.');
+      return;
+    }
+
+    setIsAddingToList(true);
+    resetAddToListFeedback();
+
+    try {
+      await addOrIncrementShoppingListItem({
+        barcode,
+        quantity: parsed.quantity,
+        productName:
+          screenState.status === 'ready' && screenState.data.productName
+            ? screenState.data.productName
+            : undefined,
+      });
+      setQuantitySheetOpen(false);
+      setAddToListSuccess('Added to Shopping List.');
+      scheduleAddToListMessageClear();
+    } catch (error) {
+      if (error instanceof ShoppingListValidationError) {
+        setAddToListError(error.message);
+      } else {
+        console.error('[results] Failed to add to shopping list', error);
+        setAddToListError('Could not add to Shopping List right now.');
+      }
+    } finally {
+      setIsAddingToList(false);
+    }
+  }
 
   const loadResults = useCallback(async () => {
     if (!barcode) {
@@ -288,7 +401,101 @@ export function ResultsFeatureScreen() {
                 </Text>
               ) : null}
             </View>
+
+            <View style={styles.addToListStack}>
+              <Button
+                accessibilityLabel="Add item to shopping list"
+                disabled={!barcode || isAddingToList || screenState.status !== 'ready'}
+                onPress={openQuantitySheet}
+                testID="results-add-to-list-button"
+              >
+                Add to List
+              </Button>
+              {addToListSuccess ? (
+                <Text
+                  variant="caption"
+                  tone="success"
+                  testID="results-add-to-list-success"
+                >
+                  {addToListSuccess}
+                </Text>
+              ) : null}
+            </View>
           </Surface>
+
+          {quantitySheetOpen ? (
+            <Modal
+              animationType="slide"
+              transparent
+              onRequestClose={closeQuantitySheet}
+              visible={quantitySheetOpen}
+            >
+              <View style={styles.sheetOverlay} testID="results-quantity-sheet">
+                <Pressable
+                  accessibilityLabel="Close quantity sheet"
+                  onPress={closeQuantitySheet}
+                  style={styles.sheetBackdrop}
+                  testID="results-quantity-backdrop"
+                />
+                <KeyboardAvoidingView
+                  behavior={Platform.select({ ios: 'padding', default: undefined })}
+                >
+                  <View
+                    style={[
+                      styles.sheetContainer,
+                      { paddingBottom: Math.max(spacing.md, insets.bottom) },
+                    ]}
+                  >
+                    <Surface variant="subtle" style={styles.quantitySheet}>
+                      <Text variant="headline">Choose quantity</Text>
+                      <Text variant="caption" tone="secondary">
+                        Set how many you want to track in your list.
+                      </Text>
+                      <View style={styles.quantityForm}>
+                        <Input
+                          label="Quantity"
+                          value={quantityInput}
+                          onChangeText={setQuantityInput}
+                          keyboardType="number-pad"
+                          autoCapitalize="none"
+                          helperText="Whole numbers only."
+                          testID="results-quantity-input"
+                        />
+                        {addToListError ? (
+                          <Text
+                            variant="footnote"
+                            tone="danger"
+                            testID="results-add-to-list-error"
+                          >
+                            {addToListError}
+                          </Text>
+                        ) : null}
+                        <View style={styles.quantityActions}>
+                          <Button
+                            variant="secondary"
+                            disabled={isAddingToList}
+                            accessibilityLabel="Cancel add to list"
+                            onPress={closeQuantitySheet}
+                            testID="results-quantity-cancel"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            disabled={isAddingToList}
+                            accessibilityLabel="Save shopping list quantity"
+                            onPress={() => void handleAddToList()}
+                            testID="results-quantity-save"
+                          >
+                            Save to List
+                          </Button>
+                        </View>
+                      </View>
+                    </Surface>
+                  </View>
+                </KeyboardAvoidingView>
+              </View>
+            </Modal>
+          ) : null}
 
           <Surface variant="subtle">
             <Text variant="headline">Store prices</Text>
@@ -417,6 +624,35 @@ const styles = StyleSheet.create({
   identityStack: {
     marginTop: spacing.md,
     gap: spacing.xxs,
+  },
+  addToListStack: {
+    marginTop: spacing.md,
+    gap: spacing.xs,
+    alignItems: 'flex-start',
+  },
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  sheetBackdrop: {
+    flex: 1,
+  },
+  sheetContainer: {
+    padding: spacing.md,
+  },
+  quantitySheet: {
+    gap: spacing.sm,
+  },
+  quantityForm: {
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  quantityActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
   },
   listStack: {
     marginTop: spacing.md,

@@ -59,8 +59,8 @@ development_status:
   epic-2-retrospective: done
 
   epic-3: in-progress
-  3-1-add-to-shopping-list-with-quantity: backlog
-  3-2-dedupe-by-barcode-and-adjust-quantity: backlog
+  3-1-add-to-shopping-list-with-quantity: done
+  3-2-dedupe-by-barcode-and-adjust-quantity: review
   3-3-check-items-in-cart-and-view-list: backlog
   epic-3-retrospective: optional
 
