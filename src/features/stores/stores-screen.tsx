@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -213,28 +213,53 @@ export function StoresFeatureScreen() {
                       <ListRow
                         title={store.name}
                         subtitle={isEditing ? 'Editing name' : 'Tap to edit name'}
-                        stateLabel={store.isActive ? 'Active' : 'Inactive'}
-                        tone={store.isActive ? 'neutral' : 'secondary'}
+                        tone="neutral"
                         onPress={() => startEditing(store)}
                         accessibilityLabel={`${store.name}, ${
                           store.isActive ? 'Active' : 'Inactive'
                         }. Tap to edit name.`}
+                        showChevronWhenPressable={false}
                         rightAccessory={
-                          <View
-                            style={styles.switchAccessory}
+                          <Pressable
+                            accessibilityRole="switch"
+                            accessibilityLabel={`Toggle active for ${store.name}`}
+                            accessibilityState={{ checked: store.isActive, disabled: isBusy }}
+                            disabled={isBusy}
+                            onPress={() => void handleToggleStore(store, !store.isActive)}
                             onStartShouldSetResponder={() => true}
+                            testID={`store-active-switch-${store.id}`}
+                            style={({ pressed }) => [
+                              styles.activeToggle,
+                              {
+                                backgroundColor: store.isActive
+                                  ? theme.green10?.val ?? theme.green9?.val
+                                  : theme.surface?.val ?? theme.background?.val,
+                                borderColor: store.isActive
+                                  ? theme.green9?.val ?? theme.borderColor?.val
+                                  : theme.borderColor?.val,
+                                opacity: isBusy ? 0.5 : pressed ? 0.85 : 1,
+                              },
+                            ]}
                           >
-                            <Text variant="caption" tone="secondary">
-                              {store.isActive ? 'On' : 'Off'}
-                            </Text>
-                            <Switch
-                              accessibilityLabel={`Toggle active for ${store.name}`}
-                              disabled={isBusy}
-                              value={store.isActive}
-                              onValueChange={(value) => void handleToggleStore(store, value)}
-                              testID={`store-active-switch-${store.id}`}
-                            />
-                          </View>
+                            <View
+                              style={[
+                                styles.activeThumb,
+                                store.isActive ? styles.activeThumbOn : styles.activeThumbOff,
+                                {
+                                  backgroundColor:
+                                    theme.surface?.val ?? theme.background?.val,
+                                  borderColor: theme.borderColor?.val,
+                                },
+                              ]}
+                            >
+                              <Text
+                                variant="caption"
+                                tone={store.isActive ? 'success' : 'secondary'}
+                              >
+                                {store.isActive ? '✓' : '✕'}
+                              </Text>
+                            </View>
+                          </Pressable>
                         }
                         testID={`store-row-${store.id}`}
                       />
@@ -305,9 +330,27 @@ const styles = StyleSheet.create({
   listItemStack: {
     gap: spacing.xs,
   },
-  switchAccessory: {
+  activeToggle: {
+    minHeight: 32,
+    width: 56,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 2,
+    justifyContent: 'center',
+  },
+  activeThumb: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
     alignItems: 'center',
-    gap: spacing.xs,
+    justifyContent: 'center',
+  },
+  activeThumbOn: {
+    alignSelf: 'flex-end',
+  },
+  activeThumbOff: {
+    alignSelf: 'flex-start',
   },
   editSurface: {
     marginTop: spacing.xs,

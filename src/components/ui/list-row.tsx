@@ -22,6 +22,7 @@ type ListRowProps = {
   tone?: ListRowTone;
   onPress?: () => void;
   rightAccessory?: ReactNode;
+  showChevronWhenPressable?: boolean;
   accessibilityLabel?: string;
   testID?: string;
   style?: StyleProp<ViewStyle>;
@@ -35,6 +36,7 @@ export function ListRow({
   tone = 'neutral',
   onPress,
   rightAccessory,
+  showChevronWhenPressable = true,
   accessibilityLabel,
   testID,
   style,
@@ -74,7 +76,7 @@ export function ListRow({
           stateLabel={stateLabel}
           stateTone={stateTone}
           rightAccessory={rightAccessory}
-          showChevron
+          showChevron={showChevronWhenPressable}
         />
       </Pressable>
     );
