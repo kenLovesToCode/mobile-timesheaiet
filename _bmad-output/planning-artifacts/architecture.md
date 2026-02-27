@@ -16,7 +16,7 @@ lastStep: 8
 status: "complete"
 completedAt: "2026-02-24T03:02:01Z"
 project_name: "priceTag"
-user_name: "ken"
+user_name: "sensei"
 date: "2026-02-24T02:04:56Z"
 ---
 

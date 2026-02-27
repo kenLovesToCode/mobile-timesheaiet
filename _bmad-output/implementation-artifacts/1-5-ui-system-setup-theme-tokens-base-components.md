@@ -203,10 +203,10 @@ GPT-5 Codex
 
 ### File List
 
-- __tests__/story-1-4-navigation-smoke.test.js
-- __tests__/story-1-5-ui-primitives.test.js
-- _bmad-output/implementation-artifacts/1-5-ui-system-setup-theme-tokens-base-components.md
-- _bmad-output/implementation-artifacts/sprint-status.yaml
+- **tests**/story-1-4-navigation-smoke.test.js
+- **tests**/story-1-5-ui-primitives.test.js
+- \_bmad-output/implementation-artifacts/1-5-ui-system-setup-theme-tokens-base-components.md
+- \_bmad-output/implementation-artifacts/sprint-status.yaml
 - app/index.tsx
 - src/components/shell/placeholder-screen.tsx
 - src/components/ui/button.tsx
@@ -228,7 +228,7 @@ GPT-5 Codex
 
 ### Reviewer
 
-ken (GPT-5 Codex)
+sensei (GPT-5 Codex)
 
 ### Review Date
 

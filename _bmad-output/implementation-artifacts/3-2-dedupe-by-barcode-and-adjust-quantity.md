@@ -181,7 +181,7 @@ so that my shopping list stays accurate without extra rows.
 ## Senior Developer Review (AI)
 
 - Date: 2026-02-27
-- Reviewer: ken
+- Reviewer: sensei
 - Outcome: Changes Requested
 - Story status recommendation: in-progress
 

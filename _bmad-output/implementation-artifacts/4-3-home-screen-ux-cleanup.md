@@ -89,7 +89,7 @@ GPT-5 Codex
 ## Senior Developer Review (AI)
 
 Date: 2026-02-27
-Reviewer: ken
+Reviewer: sensei
 Outcome: Approved with fixes applied
 
 - Fixed story over-claim by changing two completed implementation tasks into validation tasks that match actual git evidence.

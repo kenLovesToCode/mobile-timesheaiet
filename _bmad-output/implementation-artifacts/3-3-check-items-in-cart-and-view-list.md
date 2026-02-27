@@ -268,7 +268,7 @@ GPT-5 Codex
 
 ## Senior Developer Review (AI)
 
-Reviewer: ken  
+Reviewer: sensei  
 Date: 2026-02-27  
 Outcome: Changes Requested
 
@@ -309,7 +309,7 @@ Outcome: Changes Requested
 
 ## Senior Developer Review (AI) - Round 2
 
-Reviewer: ken  
+Reviewer: sensei  
 Date: 2026-02-27  
 Outcome: Changes Requested
 
@@ -340,7 +340,7 @@ Outcome: Changes Requested
 
 ## Senior Developer Review (AI) - Round 3
 
-Reviewer: ken  
+Reviewer: sensei  
 Date: 2026-02-27  
 Outcome: Approved
 

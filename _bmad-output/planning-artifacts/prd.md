@@ -17,7 +17,7 @@ stepsCompleted:
 inputDocuments:
   - docs/MVP_SPEC.md
   - _bmad-output/brainstorming/brainstorming-session-2026-02-23_17-21-14Z.md
-workflowType: 'prd'
+workflowType: "prd"
 documentCounts:
   briefCount: 0
   researchCount: 0
@@ -32,7 +32,7 @@ classification:
 
 # Product Requirements Document - priceTag
 
-**Author:** ken
+**Author:** sensei
 **Date:** 2026-02-23T19:06:05Z
 
 ## Executive Summary
@@ -123,6 +123,7 @@ The product wins on speed and reliability in real store conditions (one-handed u
 You’re shopping at **Abreeza** and pick up an item with no visible shelf tag. You don’t want to hunt for a scanner area or ask an employee, so you open Price Tag and go straight to **Scan** (you’ve already set active stores like **Gaisano Citygate, Abreeza, NCCC Choice Mart, Gaisano Mall (Bajada)**).
 
 You scan the barcode and land on **Results** in under 3 seconds. The Results screen shows each active store row with either a price + timestamp or **Missing**. You’re currently in Abreeza, so you tap the Abreeza row (Missing) and immediately add:
+
 - product name
 - price
 - barcode (auto from the scan)
@@ -150,6 +151,7 @@ Because the MVP is personal/offline-first, this “admin” work is lightweight:
 ### Journey Requirements Summary
 
 These journeys imply the MVP must support:
+
 - Active store management (add/edit/toggle active; block scanning until ≥1 active store)
 - Scan → Results in **<3s** on success; fallback offered at **5s**
 - Results view: active stores with price+timestamp or Missing
@@ -204,12 +206,14 @@ These journeys imply the MVP must support:
 ### MVP Feature Set (Phase 1)
 
 **Core User Journeys Supported:**
+
 - In-aisle scan → instant results (active stores) → add missing product name + price → add to list with quantity.
 - Scan fails → fallback (manual barcode entry + recent scans) → results → add missing data.
 - Family member uses Shopping List (dedupe/increment quantity; checked=in-cart).
 - You manage active stores and correct/update prices locally.
 
 **Must-Have Capabilities:**
+
 - Active stores required before scanning; add/edit/toggle active stores.
 - 1D barcode scanning with scan feedback (haptics) and flashlight toggle.
 - Results screen: per-active-store rows with price + timestamp or Missing.
@@ -220,19 +224,23 @@ These journeys imply the MVP must support:
 ### Post-MVP Features
 
 Post-MVP phases are documented in **Product Scope**:
+
 - **Phase 2 (Post-MVP):** see **Product Scope → Growth Features (Post-MVP)**
 - **Phase 3 (Expansion):** see **Product Scope → Vision (Future)**
 
 ### Risk Mitigation Strategy
 
 **Technical Risks (Priority):**
+
 - **Scan reliability:** validate early on target devices/lighting with curved packaging; keep a strict fallback path (5s) to avoid aisle-stall.
 - **Offline persistence correctness:** treat local DB as source of truth; test “airplane mode” flows end-to-end and validate data durability across restarts.
 
 **Market Risks:**
+
 - Ensure the MVP reliably replaces “walk to scanner area” for you/family; measure whether you reach for the app on real trips.
 
 **Resource Risks:**
+
 - As a solo build, defer anything that adds complexity (accounts, sync, receipt parsing) until the core scan→results→add loop is stable and fast.
 
 ## Functional Requirements

@@ -1,12 +1,13 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
 inputDocuments: []
-session_topic: 'Price Tag App'
-session_goals: 'Scan products per grocery store (camera/barcode), show price immediately per store/in-store, compare prices across stores, plan shopping in advance (compute totals), maintain a buy list, and track items added to cart.'
-selected_approach: 'ai-recommended'
-techniques_used: ['Question Storming', 'Solution Matrix', 'Reverse Brainstorming']
+session_topic: "Price Tag App"
+session_goals: "Scan products per grocery store (camera/barcode), show price immediately per store/in-store, compare prices across stores, plan shopping in advance (compute totals), maintain a buy list, and track items added to cart."
+selected_approach: "ai-recommended"
+techniques_used:
+  ["Question Storming", "Solution Matrix", "Reverse Brainstorming"]
 ideas_generated: [28]
-context_file: ''
+context_file: ""
 technique_execution_complete: true
 session_active: false
 workflow_completed: true
@@ -14,7 +15,7 @@ workflow_completed: true
 
 # Brainstorming Session Results
 
-**Facilitator:** ken
+**Facilitator:** sensei
 **Date:** 2026-02-23T17:21:14Z
 
 ## Session Overview
@@ -72,20 +73,17 @@ _Novelty_: Makes offline constraints drive the data model and conflict rules fro
 **Selected “Questions Only” Set (Variants + Offline-First):**
 
 A) Variants + “use the best”
+
 1. If multiple sizes share a brand/name, how do we confirm the exact variant after scan?
 2. What does “best price” mean: most recent, cheapest, highest confidence, or user-chosen default?
 3. Do we store and compare price-per-unit (e.g., per oz/kg) for fairness?
 4. What do we show when the barcode matches multiple items in our DB?
 5. Can users merge/override incorrect matches, and how do we prevent repeats?
 
-B) Offline-first + sync
-6. What must work fully offline: scan, lookup, add price, list/cart, comparisons?
-7. When offline, where does lookup come from: local DB only, or cached “active stores” data?
-8. On sync, how do we resolve conflicts (two different prices for same product+store)?
-9. Do we keep price history per store (and how many entries), or only latest?
-10. How do we handle a price that’s “too old” (stale threshold + warning)?
+B) Offline-first + sync 6. What must work fully offline: scan, lookup, add price, list/cart, comparisons? 7. When offline, where does lookup come from: local DB only, or cached “active stores” data? 8. On sync, how do we resolve conflicts (two different prices for same product+store)? 9. Do we keep price history per store (and how many entries), or only latest? 10. How do we handle a price that’s “too old” (stale threshold + warning)?
 
 **Selected “Questions Only” Set (Trust + Data Quality):**
+
 1. If a user updates a price, do we keep history + who/when, or overwrite?
 2. How do we handle sales/discounts vs regular price (tag it, or ignore for MVP)?
 3. How do we prevent a single user from “poisoning” prices for a store/product?
@@ -204,6 +202,7 @@ _Novelty_: Reduces cognitive load for one-handed, in-aisle usage.
 ### Thematic Organization
 
 **Theme 1: MVP Core Flow (Shopper In-Aisle)**
+
 - Multi-store compare against preselected “active stores”
 - Scan → instant results screen (product + per-store price/missing)
 - User-entered prices; inline add price from results screen; timestamp auto
@@ -211,27 +210,32 @@ _Novelty_: Reduces cognitive load for one-handed, in-aisle usage.
 - Single shopping list (checked = in cart)
 
 **Theme 2: Scan Reliability (Curved Packaging Reality)**
+
 - Failure modes: curvature distortion loops, glare false reads, seams/wrinkles occlusion
 - Guardrails: angle coach + fast fallback (manual entry + recent scans)
 
 **Theme 3: Data + Trust**
+
 - “Wrong but confident” is a top risk; ambiguity needs safer UX
 - Trust questions to resolve: edit history, sales/discount tagging, poisoning prevention
 - Staleness must be visible (timestamp + stale warning policy)
 
 **Theme 4: Coverage Growth**
+
 - Missing price wall risk
 - Guardrails: make “missing” actionable + progress nudges (“2/5 stores priced”)
 
 ### Prioritization Results
 
 **Top Priorities (Selected):**
-1) **Scan reliability UX** (angle coach + fallback)
-2) **Results screen + multi-store compare**
+
+1. **Scan reliability UX** (angle coach + fallback)
+2. **Results screen + multi-store compare**
 
 ### Action Planning
 
 **Priority 1: Scan Reliability UX (Angle Coach + Fallback)**
+
 - **This week:**
   1. Design scan overlay states: idle → detecting → success → fail/timeout.
   2. Define timeout rule (e.g., ~3 seconds) and fallback CTA (manual entry + recent scans).
@@ -239,6 +243,7 @@ _Novelty_: Reduces cognitive load for one-handed, in-aisle usage.
 - **Success indicators:** High “scan success or graceful fallback” completion rate; low rage-quit behavior (users not stuck in camera).
 
 **Priority 2: Results Screen + Multi-Store Compare**
+
 - **This week:**
   1. Define results screen layout: product header + list of active stores with price/missing + timestamp.
   2. Define “active stores” management entry point and default state (first run).
@@ -248,6 +253,7 @@ _Novelty_: Reduces cognitive load for one-handed, in-aisle usage.
 ## Session Summary and Insights
 
 **Key Achievements:**
+
 - Clear MVP decisions via Solution Matrix (multi-store compare + active stores + instant results + offline-first + user-entered prices).
 - Identified top adoption risk: scan reliability on curved packaging.
 - Converted major failure modes into concrete guardrails (angle coaching, fast fallback, coverage nudges, list integrity).

@@ -9,7 +9,7 @@ lastStep: 14
 
 # UX Design Specification priceTag
 
-**Author:** ken
+**Author:** sensei
 **Date:** 2026-02-24T05:02:22+08:00
 
 ---

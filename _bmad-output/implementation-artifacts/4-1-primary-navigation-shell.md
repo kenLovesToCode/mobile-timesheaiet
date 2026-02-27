@@ -230,7 +230,7 @@ GPT-5 Codex
 
 ### Reviewer
 
-ken
+sensei
 
 ### Date
 

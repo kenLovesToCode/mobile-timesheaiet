@@ -221,10 +221,10 @@ GPT-5 Codex
 ### File List
 
 - .gitignore
-- _bmad-output/implementation-artifacts/1-1-base-app-initialization-and-configuration.md
-- _bmad-output/implementation-artifacts/sprint-status.yaml
-- _bmad-output/planning-artifacts/architecture.md
-- app/_layout.tsx
+- \_bmad-output/implementation-artifacts/1-1-base-app-initialization-and-configuration.md
+- \_bmad-output/implementation-artifacts/sprint-status.yaml
+- \_bmad-output/planning-artifacts/architecture.md
+- app/\_layout.tsx
 - app/index.tsx
 - app.json
 - babel.config.js
@@ -239,47 +239,47 @@ GPT-5 Codex
 ## Senior Developer Review (AI)
 
 - Date: 2026-02-24
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Changes Requested
 - Summary: Added 3 follow-up action items for documentation drift, non-lint `lint` script, and missing `.tamagui/` ignore rule.
 - Date: 2026-02-24 (Review Pass 2)
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Changes Requested
 - Summary: Found AC4 regression (`npm run lint` missing), stale validation/docs claims, File List drift for ignored `.tamagui` artifact, and a theme auto-mode mismatch.
 - Date: 2026-02-24 (Review Pass 3)
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Changes Requested
 - Summary: Runtime evidence gaps remain for iOS/Android render and `start` execution; added 4 AI review follow-up action items and returned status to `in-progress`.
 - Date: 2026-02-24 (Review Pass 4)
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Changes Requested
 - Summary: Added 4 AI review follow-up action items for evidence rigor (AC3/AC5), preview-package alignment documentation, setup-notes portability, and a misleading placeholder CTA.
 - Date: 2026-02-24 (Review Pass 5)
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Changes Requested
 - Summary: Added 3 AI review follow-up action items for recursive ESLint `dist` ignore coverage, setup-notes smoke-check wording drift, and missing post-fix review audit trail before returning the story to `review`.
 - Date: 2026-02-24 (Review Pass 6 - Post-Fix Audit)
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Approved
 - Summary: Verified review pass 5 follow-ups are addressed (recursive `dist/**` ESLint ignore, smoke-check wording alignment, and review audit-trail entry added). Validation commands passed and story can return to `review`.
 - Date: 2026-02-24 (Review Pass 7)
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Changes Requested
 - Summary: Added 3 AI review follow-up action items for runtime-evidence traceability, Yarn-version task/notes mismatch, and direct dependency declaration for `@tamagui/native/setup-zeego`; story/tracker returned to `in-progress`.
 - Date: 2026-02-24 (Review Pass 8 - Auto-Fix)
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Changes Applied (Documentation Correction)
 - Summary: Corrected false-positive completion state by reopening the iOS/Android runtime-render task, returning story status to `in-progress`, and clarifying that locally rerun validation commands passed but runtime render evidence is still user-attested.
 - Date: 2026-02-24 (Review Pass 9)
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Changes Requested
 - Summary: Found a new documentation mismatch: story claims the Tamagui zeego warning was removed, but `npm run build` still emits the warning. Also requested stronger runtime evidence traceability / explicit attestation-based approval wording before restoring `review`.
 - Date: 2026-02-24 (Review Pass 10 - Post-Fix Audit)
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Approved (Attestation-Based Runtime Evidence)
 - Summary: Verified the stale Zeego-warning-removal claim was corrected, Android reload-via-`r` caveat is explicitly tracked as non-blocking outside Completion Status, and final review readiness wording now clearly states native runtime validation is based on user attestation. Latest local validation rerun passed.
 - Date: 2026-02-24 (Review Pass 11 - Post-Fix Audit)
-- Reviewer: ken (Codex)
+- Reviewer: sensei (Codex)
 - Outcome: Approved
 - Summary: Fixed remaining review issues by broadening `npm run build` to web+iOS+Android exports, pinning preview/RC package specs to exact versions for reproducibility, and excluding generated `.tamagui/` output from ESLint. Validation commands passed after the updates; native export still logs the known non-fatal Zeego warning.
 
