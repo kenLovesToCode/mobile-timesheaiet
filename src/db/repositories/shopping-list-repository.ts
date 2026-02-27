@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 
 import { products, shoppingListItems } from '../schema';
 import {
@@ -211,18 +211,18 @@ export async function addOrIncrementShoppingListItem(
 
 export async function listShoppingListItems(): Promise<ShoppingListItemRecord[]> {
   const db = getDb();
-    const rows = await db
-      .select({
-        productBarcode: shoppingListItems.productBarcode,
-        quantity: shoppingListItems.quantity,
-        isChecked: shoppingListItems.isChecked,
-        createdAt: shoppingListItems.createdAt,
-        updatedAt: shoppingListItems.updatedAt,
-        productName: sql<string | null>`coalesce(${products.name}, ${shoppingListItems.productName})`,
-      })
-      .from(shoppingListItems)
+  const rows = await db
+    .select({
+      productBarcode: shoppingListItems.productBarcode,
+      quantity: shoppingListItems.quantity,
+      isChecked: shoppingListItems.isChecked,
+      createdAt: shoppingListItems.createdAt,
+      updatedAt: shoppingListItems.updatedAt,
+      productName: sql<string | null>`coalesce(${products.name}, ${shoppingListItems.productName})`,
+    })
+    .from(shoppingListItems)
     .leftJoin(products, eq(shoppingListItems.productBarcode, products.barcode))
-    .orderBy(desc(shoppingListItems.updatedAt), desc(shoppingListItems.createdAt));
+    .orderBy(asc(shoppingListItems.createdAt), asc(shoppingListItems.productBarcode));
 
   return rows.map((row) => ({
     barcode: row.productBarcode,
@@ -294,16 +294,16 @@ export async function getShoppingListItem(
   const payload = parseShoppingListItemLookupInput(input);
 
   const db = getDb();
-    const rows = await db
-      .select({
-        productBarcode: shoppingListItems.productBarcode,
-        quantity: shoppingListItems.quantity,
-        isChecked: shoppingListItems.isChecked,
-        createdAt: shoppingListItems.createdAt,
-        updatedAt: shoppingListItems.updatedAt,
-        productName: sql<string | null>`coalesce(${products.name}, ${shoppingListItems.productName})`,
-      })
-      .from(shoppingListItems)
+  const rows = await db
+    .select({
+      productBarcode: shoppingListItems.productBarcode,
+      quantity: shoppingListItems.quantity,
+      isChecked: shoppingListItems.isChecked,
+      createdAt: shoppingListItems.createdAt,
+      updatedAt: shoppingListItems.updatedAt,
+      productName: sql<string | null>`coalesce(${products.name}, ${shoppingListItems.productName})`,
+    })
+    .from(shoppingListItems)
     .leftJoin(products, eq(shoppingListItems.productBarcode, products.barcode))
     .where(eq(shoppingListItems.productBarcode, payload.barcode))
     .limit(1);

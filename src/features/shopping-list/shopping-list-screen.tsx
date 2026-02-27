@@ -16,11 +16,22 @@ import {
 } from '../../db/repositories/shopping-list-repository';
 import { SHOPPING_LIST_QUANTITY_MAX } from '../../db/validation/shopping-list';
 import { radii, spacing, touchTargets } from '../../theme/tokens';
+import {
+  SHOPPING_LIST_OPEN_P95_BUDGET_MS,
+  getShoppingListOpenSamples,
+  getShoppingListOpenSummary,
+  recordShoppingListVisibleMeasurement,
+  startShoppingListOpenMeasurement,
+} from './shopping-list-performance';
 
 type ShoppingListState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'ready'; items: ShoppingListItemRecord[] };
+
+type LoadItemsOptions = {
+  trackOpenMeasurement: boolean;
+};
 
 export function ShoppingListFeatureScreen() {
   const theme = useTheme();
@@ -35,10 +46,15 @@ export function ShoppingListFeatureScreen() {
   const checkedSyncingRef = useRef(new Set<string>());
   const optimisticQuantityRef = useRef(new Map<string, number>());
   const optimisticCheckedRef = useRef(new Map<string, boolean>());
+  const pendingOpenMeasurementRef = useRef<number | null>(null);
+  const openEvidenceSinceRef = useRef<number>(Date.now());
 
-  const loadItems = useCallback(async () => {
+  const loadItems = useCallback(async (options: LoadItemsOptions) => {
     const requestId = latestLoadIdRef.current + 1;
     latestLoadIdRef.current = requestId;
+    pendingOpenMeasurementRef.current = options.trackOpenMeasurement
+      ? startShoppingListOpenMeasurement()
+      : null;
     setScreenState({ status: 'loading' });
 
     try {
@@ -59,6 +75,7 @@ export function ShoppingListFeatureScreen() {
       if (!isActiveRef.current || requestId !== latestLoadIdRef.current) {
         return;
       }
+      pendingOpenMeasurementRef.current = null;
       console.error('[shopping-list] Failed to load list items', error);
       setScreenState({
         status: 'error',
@@ -104,7 +121,7 @@ export function ShoppingListFeatureScreen() {
         quantityTargetsRef.current.delete(barcode);
         console.error('[shopping-list] Failed to update quantity', error);
         setWriteErrorMessage('Could not save quantity change. Restored the last saved values.');
-        void loadItems();
+        void loadItems({ trackOpenMeasurement: false });
       } finally {
         quantitySyncingRef.current.delete(barcode);
         if (quantityTargetsRef.current.has(barcode)) {
@@ -137,7 +154,7 @@ export function ShoppingListFeatureScreen() {
         checkedTargetsRef.current.delete(barcode);
         console.error('[shopping-list] Failed to toggle checked state', error);
         setWriteErrorMessage('Could not update checked state. Restored the last saved values.');
-        void loadItems();
+        void loadItems({ trackOpenMeasurement: false });
       } finally {
         checkedSyncingRef.current.delete(barcode);
         if (checkedTargetsRef.current.has(barcode)) {
@@ -193,13 +210,49 @@ export function ShoppingListFeatureScreen() {
   useFocusEffect(
     useCallback(() => {
       isActiveRef.current = true;
-      void loadItems();
+      void loadItems({ trackOpenMeasurement: true });
 
       return () => {
         isActiveRef.current = false;
       };
     }, [loadItems])
   );
+
+  const handleReadyLayout = useCallback(() => {
+    if (screenState.status !== 'ready') {
+      return;
+    }
+    const pendingStart = pendingOpenMeasurementRef.current;
+    if (pendingStart == null) {
+      return;
+    }
+
+    pendingOpenMeasurementRef.current = null;
+    recordShoppingListVisibleMeasurement(pendingStart);
+  }, [screenState.status]);
+
+  const handleLogOpenPerformanceEvidence = useCallback(() => {
+    if (typeof __DEV__ === 'undefined' || !__DEV__) {
+      return;
+    }
+
+    const sinceMeasuredAtMs = openEvidenceSinceRef.current;
+    const summary = getShoppingListOpenSummary({ sinceMeasuredAtMs });
+    const samples = getShoppingListOpenSamples({ sinceMeasuredAtMs });
+    const overallSummary = getShoppingListOpenSummary();
+    console.info(
+      `[shopping-list-perf] evidence ${JSON.stringify({
+        capturedAtIso: new Date().toISOString(),
+        sessionSinceMeasuredAtMs: sinceMeasuredAtMs,
+        budgetMs: SHOPPING_LIST_OPEN_P95_BUDGET_MS,
+        summary,
+        overallSummary,
+        samples,
+      })}`
+    );
+
+    openEvidenceSinceRef.current = Date.now();
+  }, []);
 
   const hasItems = screenState.status === 'ready' && screenState.items.length > 0;
 
@@ -225,6 +278,16 @@ export function ShoppingListFeatureScreen() {
             <Text variant="caption" tone="secondary" style={styles.sectionLead}>
               Quantities update as you add more items from Results.
             </Text>
+            {typeof __DEV__ !== 'undefined' && __DEV__ ? (
+              <Button
+                variant="secondary"
+                accessibilityLabel="Log shopping list open performance evidence"
+                onPress={handleLogOpenPerformanceEvidence}
+                testID="shopping-list-log-open-performance"
+              >
+                Log open performance
+              </Button>
+            ) : null}
             {writeErrorMessage ? (
               <Text
                 variant="caption"
@@ -253,7 +316,7 @@ export function ShoppingListFeatureScreen() {
                 <Button
                   variant="secondary"
                   accessibilityLabel="Retry loading shopping list"
-                  onPress={() => void loadItems()}
+                  onPress={() => void loadItems({ trackOpenMeasurement: false })}
                   testID="shopping-list-retry-button"
                 >
                   Retry
@@ -261,105 +324,126 @@ export function ShoppingListFeatureScreen() {
               </View>
             ) : null}
 
-            {screenState.status === 'ready' && !hasItems ? (
-              <View style={styles.centerState} testID="shopping-list-empty">
-                <Text variant="body">No items in your list yet.</Text>
-                <Text variant="footnote" tone="secondary">
-                  Scan an item and add it from Results to get started.
-                </Text>
-                <Button
-                  variant="secondary"
-                  accessibilityLabel="Go to Scan"
-                  onPress={() => router.push('/scan')}
-                  testID="shopping-list-scan-button"
-                >
-                  Go to Scan
-                </Button>
-              </View>
-            ) : null}
+            {screenState.status === 'ready' ? (
+              <View onLayout={handleReadyLayout} testID="shopping-list-ready-container">
+                {!hasItems ? (
+                  <View style={styles.centerState} testID="shopping-list-empty">
+                    <Text variant="body">No items in your list yet.</Text>
+                    <Text variant="footnote" tone="secondary">
+                      Scan an item and add it from Results to get started.
+                    </Text>
+                    <Button
+                      variant="secondary"
+                      accessibilityLabel="Go to Scan"
+                      onPress={() => router.push('/scan')}
+                      testID="shopping-list-scan-button"
+                    >
+                      Go to Scan
+                    </Button>
+                  </View>
+                ) : (
+                  <View style={styles.listStack}>
+                    {screenState.items.map((item) => {
+                      const title = item.productName ?? 'Unknown product';
+                      const subtitle = `Barcode: ${item.barcode}`;
+                      const meta = item.isChecked ? 'In cart' : 'Not in cart';
+                      const decreaseDisabled = item.quantity <= 1;
+                      const increaseDisabled =
+                        item.quantity >= SHOPPING_LIST_QUANTITY_MAX;
+                      const toggleAccessibilityLabel = item.isChecked
+                        ? `Mark ${title} as not in cart`
+                        : `Mark ${title} as in cart`;
+                      const toggleText = item.isChecked
+                        ? 'Mark not in cart'
+                        : 'Mark in cart';
 
-            {screenState.status === 'ready' && hasItems ? (
-              <View style={styles.listStack}>
-                {screenState.items.map((item) => {
-                  const title = item.productName ?? 'Unknown product';
-                  const subtitle = `Barcode: ${item.barcode}`;
-                  const meta = item.isChecked ? 'In cart' : 'Not in cart';
-                  const decreaseDisabled = item.quantity <= 1;
-                  const increaseDisabled = item.quantity >= SHOPPING_LIST_QUANTITY_MAX;
-
-                  return (
-                    <ListRow
-                      key={item.barcode}
-                      title={title}
-                      subtitle={subtitle}
-                      meta={meta}
-                      stateLabel={`Qty ${item.quantity}`}
-                      tone={item.isChecked ? 'secondary' : 'neutral'}
-                      rightAccessory={
-                        <View style={styles.controls}>
-                          <View style={styles.quantityControls}>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Decrease quantity for ${title}`}
-                              disabled={decreaseDisabled}
-                              onPress={() => void handleQuantityChange(item, -1)}
-                              testID={`shopping-list-decrease-${item.barcode}`}
-                              style={({ pressed }) => [
-                                styles.controlButton,
-                                {
-                                  backgroundColor:
-                                    theme.surface?.val ?? theme.background?.val,
-                                  borderColor: theme.borderColor?.val,
-                                  opacity: decreaseDisabled ? 0.5 : pressed ? 0.85 : 1,
-                                },
-                              ]}
-                            >
-                              <Text variant="headline">-</Text>
-                            </Pressable>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Increase quantity for ${title}`}
-                              disabled={increaseDisabled}
-                              onPress={() => void handleQuantityChange(item, 1)}
-                              testID={`shopping-list-increase-${item.barcode}`}
-                              style={({ pressed }) => [
-                                styles.controlButton,
-                                {
-                                  backgroundColor:
-                                    theme.surface?.val ?? theme.background?.val,
-                                  borderColor: theme.borderColor?.val,
-                                  opacity: increaseDisabled ? 0.5 : pressed ? 0.85 : 1,
-                                },
-                              ]}
-                            >
-                              <Text variant="headline">+</Text>
-                            </Pressable>
-                          </View>
-                          <Pressable
-                            accessibilityRole="button"
-                            accessibilityLabel={`Toggle in cart for ${title}`}
-                            onPress={() => void handleToggleChecked(item)}
-                            testID={`shopping-list-toggle-${item.barcode}`}
-                            style={({ pressed }) => [
-                              styles.toggleButton,
-                              {
-                                backgroundColor:
-                                  theme.surface?.val ?? theme.background?.val,
-                                borderColor: theme.borderColor?.val,
-                                opacity: pressed ? 0.85 : 1,
-                              },
-                            ]}
-                          >
-                            <Text variant="caption">
-                              {item.isChecked ? 'Uncheck' : 'Check'}
-                            </Text>
-                          </Pressable>
-                        </View>
-                      }
-                      testID={`shopping-list-row-${item.barcode}`}
-                    />
-                  );
-                })}
+                      return (
+                        <ListRow
+                          key={item.barcode}
+                          title={title}
+                          subtitle={subtitle}
+                          meta={meta}
+                          stateLabel={`Qty ${item.quantity}`}
+                          tone={item.isChecked ? 'secondary' : 'neutral'}
+                          rightAccessory={
+                            <View style={styles.controls}>
+                              <View style={styles.quantityControls}>
+                                <Pressable
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Decrease quantity for ${title}`}
+                                  disabled={decreaseDisabled}
+                                  onPress={() =>
+                                    void handleQuantityChange(item, -1)
+                                  }
+                                  testID={`shopping-list-decrease-${item.barcode}`}
+                                  style={({ pressed }) => [
+                                    styles.controlButton,
+                                    {
+                                      backgroundColor:
+                                        theme.surface?.val ?? theme.background?.val,
+                                      borderColor: theme.borderColor?.val,
+                                      opacity: decreaseDisabled
+                                        ? 0.5
+                                        : pressed
+                                          ? 0.85
+                                          : 1,
+                                    },
+                                  ]}
+                                >
+                                  <Text variant="headline">-</Text>
+                                </Pressable>
+                                <Pressable
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Increase quantity for ${title}`}
+                                  disabled={increaseDisabled}
+                                  onPress={() =>
+                                    void handleQuantityChange(item, 1)
+                                  }
+                                  testID={`shopping-list-increase-${item.barcode}`}
+                                  style={({ pressed }) => [
+                                    styles.controlButton,
+                                    {
+                                      backgroundColor:
+                                        theme.surface?.val ?? theme.background?.val,
+                                      borderColor: theme.borderColor?.val,
+                                      opacity: increaseDisabled
+                                        ? 0.5
+                                        : pressed
+                                          ? 0.85
+                                          : 1,
+                                    },
+                                  ]}
+                                >
+                                  <Text variant="headline">+</Text>
+                                </Pressable>
+                              </View>
+                              <Pressable
+                                accessibilityRole="switch"
+                                accessibilityLabel={toggleAccessibilityLabel}
+                                accessibilityState={{ checked: item.isChecked }}
+                                accessibilityHint="Updates whether this item is already in your cart."
+                                onPress={() => void handleToggleChecked(item)}
+                                testID={`shopping-list-toggle-${item.barcode}`}
+                                style={({ pressed }) => [
+                                  styles.toggleButton,
+                                  {
+                                    backgroundColor:
+                                      theme.surface?.val ?? theme.background?.val,
+                                    borderColor: theme.borderColor?.val,
+                                    opacity: pressed ? 0.85 : 1,
+                                  },
+                                ]}
+                              >
+                                <Text variant="caption">{toggleText}</Text>
+                              </Pressable>
+                            </View>
+                          }
+                          testID={`shopping-list-row-${item.barcode}`}
+                        />
+                      );
+                    })}
+                  </View>
+                )}
               </View>
             ) : null}
           </Surface>

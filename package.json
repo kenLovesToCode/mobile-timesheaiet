@@ -5,6 +5,8 @@
   "packageManager": "npm@11.8.0",
   "scripts": {
     "start": "expo start",
+    "start:fresh": "npx expo start --clear",
+    "start:prod": "npx expo start --no-dev --minify",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
