@@ -18,9 +18,17 @@ function withRouterPluginRoot(plugins) {
   });
 }
 
+function withRequiredPlugins(plugins) {
+  const nextPlugins = [...(plugins ?? [])];
+  if (!nextPlugins.some((plugin) => plugin === 'expo-sharing' || (Array.isArray(plugin) && plugin[0] === 'expo-sharing'))) {
+    nextPlugins.push('expo-sharing');
+  }
+  return nextPlugins;
+}
+
 module.exports = {
   expo: {
     ...baseExpoConfig,
-    plugins: withRouterPluginRoot(baseExpoConfig.plugins),
+    plugins: withRequiredPlugins(withRouterPluginRoot(baseExpoConfig.plugins)),
   },
 };
