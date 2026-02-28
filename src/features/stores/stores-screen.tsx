@@ -325,10 +325,10 @@ const styles = StyleSheet.create({
   },
   listStack: {
     marginTop: spacing.md,
-    gap: spacing.sm,
+    gap: 3,
   },
   listItemStack: {
-    gap: spacing.xs,
+    gap: 3,
   },
   activeToggle: {
     minHeight: 32,

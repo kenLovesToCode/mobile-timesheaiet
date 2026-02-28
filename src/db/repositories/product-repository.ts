@@ -1,11 +1,12 @@
 import { and, asc, eq, like, or, sql } from 'drizzle-orm';
 
 import { db } from '../client';
-import { products } from '../schema';
+import { prices, products, shoppingListItems } from '../schema';
 import {
   parseCreateProductInput,
   parseListProductsInput,
   parseSetProductActiveInput,
+  parseUpdateProductBarcodeInput,
   parseUpdateProductNameInput,
   ProductValidationError,
 } from '../validation/products';
@@ -136,4 +137,88 @@ export async function setProductActive(input: unknown): Promise<ProductListItem>
   }
 
   return mapProductRow(updated);
+}
+
+export async function updateProductBarcode(input: unknown): Promise<ProductListItem> {
+  const payload = parseUpdateProductBarcodeInput(input);
+  const now = Date.now();
+
+  if (payload.currentBarcode === payload.newBarcode) {
+    const rows = await db
+      .select()
+      .from(products)
+      .where(eq(products.barcode, payload.currentBarcode))
+      .limit(1);
+    const current = rows[0];
+    if (!current) {
+      throw new Error(`Product not found: ${payload.currentBarcode}`);
+    }
+    return mapProductRow(current);
+  }
+
+  return db.transaction(async (tx) => {
+    const currentRows = await tx
+      .select()
+      .from(products)
+      .where(eq(products.barcode, payload.currentBarcode))
+      .limit(1);
+    const current = currentRows[0];
+
+    if (!current) {
+      throw new Error(`Product not found: ${payload.currentBarcode}`);
+    }
+
+    const targetRows = await tx
+      .select({ barcode: products.barcode })
+      .from(products)
+      .where(eq(products.barcode, payload.newBarcode))
+      .limit(1);
+
+    if (targetRows[0]) {
+      throw new ProductValidationError([
+        {
+          code: 'custom',
+          message: 'product barcode already exists',
+          path: ['newBarcode'],
+        },
+      ]);
+    }
+
+    await tx.insert(products).values({
+      barcode: payload.newBarcode,
+      name: current.name,
+      isActive: current.isActive,
+      createdAt: current.createdAt,
+      updatedAt: now,
+    });
+
+    await tx
+      .update(prices)
+      .set({
+        productBarcode: payload.newBarcode,
+      })
+      .where(eq(prices.productBarcode, payload.currentBarcode));
+
+    await tx
+      .update(shoppingListItems)
+      .set({
+        productBarcode: payload.newBarcode,
+      })
+      .where(eq(shoppingListItems.productBarcode, payload.currentBarcode));
+
+    await tx.delete(products).where(eq(products.barcode, payload.currentBarcode));
+
+    const updatedRows = await tx
+      .select()
+      .from(products)
+      .where(eq(products.barcode, payload.newBarcode))
+      .limit(1);
+    const updated = updatedRows[0];
+
+    if (!updated) {
+      throw new Error('Failed to update product barcode');
+    }
+
+    return mapProductRow(updated);
+  });
 }

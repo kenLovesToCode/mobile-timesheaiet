@@ -39,6 +39,11 @@ export const setProductActiveInputSchema = z.object({
   isActive: z.boolean(),
 });
 
+export const updateProductBarcodeInputSchema = z.object({
+  currentBarcode: productBarcodeSchema,
+  newBarcode: productBarcodeSchema,
+});
+
 export const listProductsInputSchema = z.object({
   query: z.string().trim().max(120).default(''),
   includeInactive: z.boolean().default(true),
@@ -47,6 +52,7 @@ export const listProductsInputSchema = z.object({
 export type CreateProductInput = z.infer<typeof createProductInputSchema>;
 export type UpdateProductNameInput = z.infer<typeof updateProductNameInputSchema>;
 export type SetProductActiveInput = z.infer<typeof setProductActiveInputSchema>;
+export type UpdateProductBarcodeInput = z.infer<typeof updateProductBarcodeInputSchema>;
 export type ListProductsInput = z.infer<typeof listProductsInputSchema>;
 
 export class ProductValidationError extends Error {
@@ -79,6 +85,10 @@ export function parseUpdateProductNameInput(input: unknown) {
 
 export function parseSetProductActiveInput(input: unknown) {
   return parseWithSchema(input, setProductActiveInputSchema);
+}
+
+export function parseUpdateProductBarcodeInput(input: unknown) {
+  return parseWithSchema(input, updateProductBarcodeInputSchema);
 }
 
 export function parseListProductsInput(input: unknown) {

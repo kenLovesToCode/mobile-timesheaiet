@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useTheme } from 'tamagui';
 
-import { radii, spacing, touchTargets } from '../../theme/tokens';
+import { radii, spacing } from '../../theme/tokens';
 import { Text } from './text';
 import type { TextTone } from './text';
 
@@ -142,15 +142,15 @@ function ListRowContent({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: touchTargets.min,
+    minHeight: 40,
     borderWidth: 1,
     borderRadius: radii.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   main: {
     flex: 1,

@@ -737,6 +737,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   recentScansList: {
-    gap: spacing.sm,
+    gap: 3,
   },
 });

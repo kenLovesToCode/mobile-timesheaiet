@@ -8,6 +8,9 @@ const barcodeSchema = z
   .min(1, 'barcode is required')
   .max(64, 'barcode must be 64 characters or fewer');
 
+const shoppingListIdSchema = z.number().int('shopping list id must be an integer').min(1);
+const storeIdSchema = z.number().int('store id must be an integer').min(1);
+
 const quantitySchema = z
   .number()
   .int('quantity must be a whole number')
@@ -19,6 +22,8 @@ const productNameSchema = z
   .trim()
   .min(1, 'product name is required')
   .max(160, 'product name must be 160 characters or fewer');
+
+const statusSchema = z.enum(['active', 'done']);
 
 export const addOrUpdateShoppingListItemInputSchema = z.object({
   barcode: barcodeSchema,
@@ -42,6 +47,37 @@ export const shoppingListItemToggleSchema = z.object({
   isChecked: z.boolean(),
 });
 
+export const createShoppingListInputSchema = z.object({
+  storeId: storeIdSchema,
+});
+
+export const shoppingListIdInputSchema = z.object({
+  shoppingListId: shoppingListIdSchema,
+});
+
+export const shoppingListStatusInputSchema = z.object({
+  shoppingListId: shoppingListIdSchema,
+  status: statusSchema,
+});
+
+export const shoppingListStoreProductsQuerySchema = z.object({
+  shoppingListId: shoppingListIdSchema,
+  query: z.string().trim().max(160, 'search query is too long').optional(),
+});
+
+export const upsertShoppingListCartItemInputSchema = z.object({
+  shoppingListId: shoppingListIdSchema,
+  barcode: barcodeSchema,
+  quantity: quantitySchema,
+  productName: productNameSchema.optional(),
+  priceCents: z.number().int().min(0, 'price cents cannot be negative').optional(),
+});
+
+export const removeShoppingListCartItemInputSchema = z.object({
+  shoppingListId: shoppingListIdSchema,
+  barcode: barcodeSchema,
+});
+
 export type AddOrUpdateShoppingListItemInput = z.infer<
   typeof addOrUpdateShoppingListItemInputSchema
 >;
@@ -51,6 +87,12 @@ export type AddOrIncrementShoppingListItemInput = z.infer<
 export type ShoppingListItemLookupInput = z.infer<typeof shoppingListItemLookupSchema>;
 export type ShoppingListItemQuantityInput = z.infer<typeof shoppingListItemQuantitySchema>;
 export type ShoppingListItemToggleInput = z.infer<typeof shoppingListItemToggleSchema>;
+export type CreateShoppingListInput = z.infer<typeof createShoppingListInputSchema>;
+export type ShoppingListIdInput = z.infer<typeof shoppingListIdInputSchema>;
+export type ShoppingListStatusInput = z.infer<typeof shoppingListStatusInputSchema>;
+export type ShoppingListStoreProductsQueryInput = z.infer<typeof shoppingListStoreProductsQuerySchema>;
+export type UpsertShoppingListCartItemInput = z.infer<typeof upsertShoppingListCartItemInputSchema>;
+export type RemoveShoppingListCartItemInput = z.infer<typeof removeShoppingListCartItemInputSchema>;
 
 export class ShoppingListValidationError extends Error {
   issues: z.ZodIssue[];
@@ -90,4 +132,28 @@ export function parseShoppingListItemQuantityInput(input: unknown) {
 
 export function parseShoppingListItemToggleInput(input: unknown) {
   return parseWithSchema(input, shoppingListItemToggleSchema);
+}
+
+export function parseCreateShoppingListInput(input: unknown) {
+  return parseWithSchema(input, createShoppingListInputSchema);
+}
+
+export function parseShoppingListIdInput(input: unknown) {
+  return parseWithSchema(input, shoppingListIdInputSchema);
+}
+
+export function parseShoppingListStatusInput(input: unknown) {
+  return parseWithSchema(input, shoppingListStatusInputSchema);
+}
+
+export function parseShoppingListStoreProductsQueryInput(input: unknown) {
+  return parseWithSchema(input, shoppingListStoreProductsQuerySchema);
+}
+
+export function parseUpsertShoppingListCartItemInput(input: unknown) {
+  return parseWithSchema(input, upsertShoppingListCartItemInputSchema);
+}
+
+export function parseRemoveShoppingListCartItemInput(input: unknown) {
+  return parseWithSchema(input, removeShoppingListCartItemInputSchema);
 }

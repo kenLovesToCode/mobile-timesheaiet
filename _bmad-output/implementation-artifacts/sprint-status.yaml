@@ -62,7 +62,11 @@ development_status:
   3-1-add-to-shopping-list-with-quantity: done
   3-2-dedupe-by-barcode-and-adjust-quantity: done
   3-3-check-items-in-cart-and-view-list: done
-  epic-3-retrospective: done
+  3-4-shopping-lists-index-and-create-new-list: done
+  3-5-advance-shopping-screen-active-list-crud: done
+  3-6-list-detail-reopen-status-controls-read-only-done: done
+  3-7-data-model-migration-for-multi-list-shopping: done
+  epic-3-retrospective: optional
 
   epic-4: done
   4-1-primary-navigation-shell: done

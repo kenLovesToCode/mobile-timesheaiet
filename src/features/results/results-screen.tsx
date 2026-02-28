@@ -691,7 +691,7 @@ const styles = StyleSheet.create({
   },
   listStack: {
     marginTop: spacing.md,
-    gap: spacing.sm,
+    gap: 3,
   },
   refreshingLabel: {
     marginTop: spacing.sm,

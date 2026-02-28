@@ -14,12 +14,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { ListRow } from '../../components/ui/list-row';
 import { Surface } from '../../components/ui/surface';
 import { Text } from '../../components/ui/text';
 import {
   listProducts,
-  setProductActive,
+  updateProductBarcode,
   type ProductListItem,
 } from '../../db/repositories/product-repository';
 import {
@@ -46,6 +45,7 @@ type CameraPermissionState =
   | { status: 'error' };
 
 type ProductSheetMode = 'add' | 'edit' | null;
+type BarcodeScanTarget = 'add' | 'edit';
 
 function formatCentsForInput(priceCents: number | null): string {
   if (priceCents == null || Number.isNaN(priceCents)) {
@@ -92,6 +92,7 @@ export function ProductsFeatureScreen() {
   const [isAddingProduct, setIsAddingProduct] = useState(false);
 
   const [editingBarcode, setEditingBarcode] = useState<string | null>(null);
+  const [editBarcode, setEditBarcode] = useState('');
   const [editName, setEditName] = useState('');
   const [editPriceInput, setEditPriceInput] = useState('');
   const [selectedEditStoreId, setSelectedEditStoreId] = useState<number | null>(null);
@@ -102,6 +103,7 @@ export function ProductsFeatureScreen() {
 
   const [busyBarcode, setBusyBarcode] = useState<string | null>(null);
   const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
+  const [barcodeScanTarget, setBarcodeScanTarget] = useState<BarcodeScanTarget>('add');
   const [scannerPermissionState, setScannerPermissionState] = useState<CameraPermissionState>({
     status: 'loading',
   });
@@ -148,7 +150,14 @@ export function ProductsFeatureScreen() {
     }
   }, []);
 
-  const openBarcodeScanner = useCallback(() => {
+  const openAddBarcodeScanner = useCallback(() => {
+    setBarcodeScanTarget('add');
+    setIsBarcodeScannerOpen(true);
+    void loadScannerPermissionState();
+  }, [loadScannerPermissionState]);
+
+  const openEditBarcodeScanner = useCallback(() => {
+    setBarcodeScanTarget('edit');
     setIsBarcodeScannerOpen(true);
     void loadScannerPermissionState();
   }, [loadScannerPermissionState]);
@@ -165,10 +174,14 @@ export function ProductsFeatureScreen() {
         return;
       }
 
-      setAddBarcode(barcode);
+      if (barcodeScanTarget === 'edit') {
+        setEditBarcode(barcode);
+      } else {
+        setAddBarcode(barcode);
+      }
       closeBarcodeScanner();
     },
-    [closeBarcodeScanner]
+    [barcodeScanTarget, closeBarcodeScanner]
   );
 
   function resetAddForm() {
@@ -185,6 +198,7 @@ export function ProductsFeatureScreen() {
 
     if (sheetMode === 'edit') {
       setEditingBarcode(null);
+      setEditBarcode('');
       setEditName('');
       setEditPriceInput('');
       setEditPriceByStoreId({});
@@ -299,6 +313,7 @@ export function ProductsFeatureScreen() {
   async function startEditing(product: ProductListItem) {
     setSheetMode('edit');
     setEditingBarcode(product.barcode);
+    setEditBarcode(product.barcode);
     setEditName(product.name ?? '');
     setEditError(null);
     setIsPreparingEditSheet(true);
@@ -360,7 +375,13 @@ export function ProductsFeatureScreen() {
     setIsSavingEdit(true);
 
     try {
+      const normalizedEditBarcode = normalizeBarcodeValue(editBarcode);
       const priceCents = parsePriceInputToCents(editPriceInput);
+
+      if (!normalizedEditBarcode) {
+        setEditError('Enter a valid barcode.');
+        return;
+      }
 
       if (selectedEditStoreId == null) {
         setEditError('Select an active store before saving changes.');
@@ -372,8 +393,18 @@ export function ProductsFeatureScreen() {
         return;
       }
 
+      let effectiveBarcode = editingBarcode;
+      if (normalizedEditBarcode !== editingBarcode) {
+        const renamedProduct = await updateProductBarcode({
+          currentBarcode: editingBarcode,
+          newBarcode: normalizedEditBarcode,
+        });
+        effectiveBarcode = renamedProduct.barcode;
+        setEditingBarcode(renamedProduct.barcode);
+      }
+
       await saveStorePrice({
-        barcode: editingBarcode,
+        barcode: effectiveBarcode,
         productName: editName,
         storeId: selectedEditStoreId,
         priceCents,
@@ -391,21 +422,6 @@ export function ProductsFeatureScreen() {
       setScreenError('Could not update product right now.');
     } finally {
       setIsSavingEdit(false);
-      setBusyBarcode(null);
-    }
-  }
-
-  async function handleToggleActive(product: ProductListItem) {
-    setScreenError(null);
-    setBusyBarcode(product.barcode);
-
-    try {
-      await setProductActive({ barcode: product.barcode, isActive: !product.isActive });
-      await loadProducts(query);
-    } catch (error) {
-      console.error('[products] Failed to toggle product status', error);
-      setScreenError('Could not update product status right now.');
-    } finally {
       setBusyBarcode(null);
     }
   }
@@ -449,7 +465,7 @@ export function ProductsFeatureScreen() {
           <Surface variant="subtle">
             <Text variant="headline">Saved products</Text>
             <Text variant="caption" tone="secondary" style={styles.sectionLead}>
-              Tap a product to edit in the bottom sheet. Use switch to set active/inactive.
+              Tap a product to edit in the bottom sheet.
             </Text>
 
             {screenError ? (
@@ -476,61 +492,32 @@ export function ProductsFeatureScreen() {
               <View style={styles.listStack}>
                 {products.map((product) => {
                   const title = product.name ?? 'Unnamed product';
-                  const isBusy = busyBarcode === product.barcode;
+                  const isBusy = busyBarcode === product.barcode || isPreparingEditSheet;
 
                   return (
-                    <View key={product.barcode} style={styles.listItemStack}>
-                      <ListRow
-                        title={title}
-                        subtitle={`Barcode: ${product.barcode}`}
-                        tone={product.isActive ? 'neutral' : 'secondary'}
-                        stateLabel={product.isActive ? 'Active' : 'Inactive'}
-                        onPress={() => void startEditing(product)}
-                        accessibilityLabel={`${title}, barcode ${product.barcode}, ${
-                          product.isActive ? 'active' : 'inactive'
-                        }. Tap to edit.`}
-                        showChevronWhenPressable={false}
-                        rightAccessory={
-                          <Pressable
-                            accessibilityRole="switch"
-                            accessibilityLabel={`Toggle active for ${title}`}
-                            accessibilityState={{ checked: product.isActive, disabled: isBusy }}
-                            disabled={isBusy}
-                            onPress={() => void handleToggleActive(product)}
-                            onStartShouldSetResponder={() => true}
-                            testID={`product-active-switch-${product.barcode}`}
-                            style={({ pressed }) => [
-                              styles.activeToggle,
-                              {
-                                backgroundColor: product.isActive
-                                  ? theme.green10?.val ?? theme.green9?.val
-                                  : theme.surface?.val ?? theme.background?.val,
-                                borderColor: product.isActive
-                                  ? theme.green9?.val ?? theme.borderColor?.val
-                                  : theme.borderColor?.val,
-                                opacity: isBusy ? 0.5 : pressed ? 0.85 : 1,
-                              },
-                            ]}
-                          >
-                            <View
-                              style={[
-                                styles.activeThumb,
-                                product.isActive ? styles.activeThumbOn : styles.activeThumbOff,
-                                {
-                                  backgroundColor: theme.surface?.val ?? theme.background?.val,
-                                  borderColor: theme.borderColor?.val,
-                                },
-                              ]}
-                            >
-                              <Text variant="caption" tone={product.isActive ? 'success' : 'secondary'}>
-                                {product.isActive ? '✓' : '✕'}
-                              </Text>
-                            </View>
-                          </Pressable>
-                        }
-                        testID={`product-row-${product.barcode}`}
-                      />
-                    </View>
+                    <Pressable
+                      key={product.barcode}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${title}, barcode ${product.barcode}. Tap to edit.`}
+                      disabled={isBusy}
+                      onPress={() => void startEditing(product)}
+                      testID={`product-row-${product.barcode}`}
+                      style={({ pressed }) => [
+                        styles.productRow,
+                        {
+                          backgroundColor: theme.surface?.val ?? theme.background?.val,
+                          borderColor: theme.borderColor?.val,
+                          opacity: isBusy ? 0.6 : pressed ? 0.88 : 1,
+                        },
+                      ]}
+                    >
+                      <Text variant="footnote" style={styles.productRowName} numberOfLines={1}>
+                        {title}
+                      </Text>
+                      <Text variant="caption" tone="secondary" style={styles.productRowBarcode} numberOfLines={1}>
+                        {product.barcode}
+                      </Text>
+                    </Pressable>
                   );
                 })}
               </View>
@@ -583,7 +570,7 @@ export function ProductsFeatureScreen() {
                       <Pressable
                         accessibilityRole="button"
                         accessibilityLabel="Scan barcode"
-                        onPress={openBarcodeScanner}
+                        onPress={openAddBarcodeScanner}
                         testID="products-add-barcode-scan-trigger"
                         style={({ pressed }) => [
                           styles.scanIconButton,
@@ -790,6 +777,120 @@ export function ProductsFeatureScreen() {
                   </View>
                 ) : (
                   <>
+                    <View style={styles.barcodeRow}>
+                      <Text variant="footnote" tone="secondary" style={styles.barcodeLabel}>
+                        Barcode
+                      </Text>
+                      <View style={styles.barcodeInputAndTriggerRow}>
+                        <View style={styles.barcodeInputWrap}>
+                          <Input
+                            value={editBarcode}
+                            onChangeText={setEditBarcode}
+                            placeholder="UPC/EAN"
+                            keyboardType="number-pad"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            returnKeyType="next"
+                            accessibilityLabel="Barcode"
+                            testID="products-edit-barcode-input"
+                          />
+                        </View>
+                        <View style={styles.scanTriggerRow}>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Scan barcode for edit"
+                            onPress={openEditBarcodeScanner}
+                            testID="products-edit-barcode-scan-trigger"
+                            style={({ pressed }) => [
+                              styles.scanIconButton,
+                              {
+                                backgroundColor: theme.surface?.val ?? theme.background?.val,
+                                borderColor: theme.borderColor?.val,
+                                opacity: pressed ? 0.85 : 1,
+                              },
+                            ]}
+                          >
+                            <Ionicons
+                              name="barcode-outline"
+                              size={22}
+                              color={theme.textPrimary?.val ?? theme.color?.val}
+                            />
+                          </Pressable>
+                        </View>
+                      </View>
+                    </View>
+                    {isBarcodeScannerOpen ? (
+                      <Surface variant="subtle" style={styles.scannerSheet}>
+                        <Text variant="headline">Scan barcode</Text>
+                        {scannerPermissionState.status === 'loading' ? (
+                          <View style={styles.centerState}>
+                            <ActivityIndicator accessibilityRole="progressbar" />
+                            <Text variant="footnote" tone="secondary">
+                              Checking camera access...
+                            </Text>
+                          </View>
+                        ) : null}
+
+                        {scannerPermissionState.status === 'request' ? (
+                          <View style={styles.formStack}>
+                            <Text variant="footnote" tone="secondary">
+                              Camera access is needed to scan barcodes.
+                            </Text>
+                            <Button
+                              onPress={() => void requestScannerPermission()}
+                              testID="products-edit-barcode-scan-permission"
+                            >
+                              Enable Camera
+                            </Button>
+                          </View>
+                        ) : null}
+
+                        {scannerPermissionState.status === 'denied' ? (
+                          <Text variant="footnote" tone="warning">
+                            Camera access is denied. You can still type the barcode manually.
+                          </Text>
+                        ) : null}
+
+                        {scannerPermissionState.status === 'unavailable' ? (
+                          <Text variant="footnote" tone="warning">
+                            Camera is unavailable on this device. You can still type the barcode manually.
+                          </Text>
+                        ) : null}
+
+                        {scannerPermissionState.status === 'error' ? (
+                          <View style={styles.formStack}>
+                            <Text variant="footnote" tone="danger">
+                              Camera status unavailable right now.
+                            </Text>
+                            <Button
+                              variant="secondary"
+                              onPress={() => void loadScannerPermissionState()}
+                              testID="products-edit-barcode-scan-retry"
+                            >
+                              Retry
+                            </Button>
+                          </View>
+                        ) : null}
+
+                        {scannerPermissionState.status === 'ready' ? (
+                          <ScanCamera
+                            isActive
+                            enableTorch={false}
+                            onBarcodeScanned={handleScannerBarcodeScanned}
+                          />
+                        ) : null}
+
+                        <View style={styles.scannerActions}>
+                          <Button
+                            variant="secondary"
+                            onPress={closeBarcodeScanner}
+                            testID="products-edit-barcode-scan-cancel"
+                          >
+                            Close Scanner
+                          </Button>
+                        </View>
+                      </Surface>
+                    ) : null}
                     <Input
                       label="Product name"
                       value={editName}
@@ -915,32 +1016,24 @@ const styles = StyleSheet.create({
   },
   listStack: {
     marginTop: spacing.md,
-    gap: spacing.sm,
+    gap: 3,
   },
-  listItemStack: {
-    gap: spacing.xs,
-  },
-  activeToggle: {
-    minHeight: 32,
-    width: 56,
-    borderRadius: 999,
+  productRow: {
+    minHeight: 40,
     borderWidth: 1,
-    paddingHorizontal: 2,
-    justifyContent: 'center',
-  },
-  activeThumb: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
   },
-  activeThumbOn: {
-    alignSelf: 'flex-end',
+  productRowName: {
+    flex: 1,
   },
-  activeThumbOff: {
-    alignSelf: 'flex-start',
+  productRowBarcode: {
+    width: 120,
+    textAlign: 'right',
   },
   selectorGroup: {
     gap: spacing.xs,

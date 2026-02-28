@@ -8,6 +8,7 @@ import m0003 from './0003_quiet_recent_scans.sql';
 import m0004 from './0004_breezy_shopping_list.sql';
 import m0005 from './0005_calm_shopping_list_product_name.sql';
 import m0006 from './0006_product_active_flag.sql';
+import m0007 from './0007_swift_advanced_shopping.sql';
 
 export default {
   journal,
@@ -19,5 +20,6 @@ export default {
     m0004,
     m0005,
     m0006,
+    m0007,
   },
 };
