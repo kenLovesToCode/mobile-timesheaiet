@@ -41,7 +41,7 @@ const LIST_VIEWPORT_MAX_HEIGHT =
   MAX_VISIBLE_ROWS * COMPACT_ROW_HEIGHT + (MAX_VISIBLE_ROWS - 1) * 3;
 
 function formatCurrency(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+  return `₱${(cents / 100).toFixed(2)}`;
 }
 
 function parseQuantity(value: string): number | null {

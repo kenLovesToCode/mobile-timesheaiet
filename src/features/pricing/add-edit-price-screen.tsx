@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from 'tamagui';
@@ -13,6 +20,7 @@ import { getStoreById } from '../../db/repositories/store-repository';
 import { PricingValidationError } from '../../db/validation/pricing';
 import { markPendingResultsRefreshMeasurement } from '../results/results-refresh-performance';
 import { guardAddPriceRouteContext } from '../scan/guards/route-context-guard';
+import { fetchOpenFoodFactsProductName } from './open-food-facts';
 import { spacing } from '../../theme/tokens';
 
 type AddPriceRouteParams = {
@@ -110,6 +118,7 @@ export function AddEditPriceFeatureScreen() {
   const [canonicalProductName, setCanonicalProductName] = useState<string | null>(null);
   const [isResolvingProductContext, setIsResolvingProductContext] = useState(false);
   const [didProductContextLookupFail, setDidProductContextLookupFail] = useState(false);
+  const [isFetchingOnlineProductName, setIsFetchingOnlineProductName] = useState(false);
   const saveInFlightRef = useRef(false);
   const productNameEditedRef = useRef(false);
 
@@ -170,6 +179,7 @@ export function AddEditPriceFeatureScreen() {
     setCanonicalProductName(null);
     setIsResolvingProductContext(false);
     setDidProductContextLookupFail(false);
+    setIsFetchingOnlineProductName(false);
     setIsSaving(false);
     saveInFlightRef.current = false;
     productNameEditedRef.current = false;
@@ -257,11 +267,13 @@ export function AddEditPriceFeatureScreen() {
       setCanonicalProductName(null);
       setIsResolvingProductContext(false);
       setDidProductContextLookupFail(false);
+      setIsFetchingOnlineProductName(false);
       return;
     }
 
     setIsResolvingProductContext(true);
     setDidProductContextLookupFail(false);
+    setIsFetchingOnlineProductName(false);
 
     void Promise.resolve(getProductByBarcode({ barcode }))
       .then((product) => {
@@ -284,6 +296,39 @@ export function AddEditPriceFeatureScreen() {
             return canonicalName;
           });
         }
+
+        if (canonicalName || normalizedInitialProductName.length > 0) {
+          return;
+        }
+
+        setIsFetchingOnlineProductName(true);
+        void fetchOpenFoodFactsProductName(barcode)
+          .then((remoteName) => {
+            if (!isMounted) {
+              return;
+            }
+            if (!remoteName || productNameEditedRef.current) {
+              return;
+            }
+
+            setProductName((currentValue) => {
+              if (productNameEditedRef.current || currentValue.trim().length > 0) {
+                return currentValue;
+              }
+              return remoteName;
+            });
+          })
+          .catch((error) => {
+            if (!isMounted) {
+              return;
+            }
+            console.error('[pricing] Optional online product lookup failed', error);
+          })
+          .finally(() => {
+            if (isMounted) {
+              setIsFetchingOnlineProductName(false);
+            }
+          });
       })
       .catch((error) => {
         if (!isMounted) {
@@ -303,7 +348,7 @@ export function AddEditPriceFeatureScreen() {
     return () => {
       isMounted = false;
     };
-  }, [barcode]);
+  }, [barcode, normalizedInitialProductName]);
 
   const handleExitToResults = useCallback(() => {
     navigateToSafeResults();
@@ -482,15 +527,31 @@ export function AddEditPriceFeatureScreen() {
                   autoCapitalize="none"
                   testID="add-price-barcode-input"
                 />
+                <View style={styles.productNameLabelRow}>
+                  <Text variant="footnote" tone="secondary">
+                    Product name
+                  </Text>
+                  {isFetchingOnlineProductName ? (
+                    <Text variant="caption" tone="secondary" style={styles.fetchingLabel}>
+                      fetching...
+                    </Text>
+                  ) : null}
+                </View>
                 <Input
-                  label="Product name"
                   value={productName}
                   onChangeText={handleProductNameChange}
                   autoCapitalize="words"
                   placeholder="e.g. Greek Yogurt"
+                  rightAccessory={
+                    isFetchingOnlineProductName ? (
+                      <ActivityIndicator size="small" />
+                    ) : null
+                  }
                   helperText={
                     isResolvingProductContext && normalizedInitialProductName.length === 0
                       ? 'Checking for a saved product name for this barcode...'
+                      : isFetchingOnlineProductName
+                        ? 'Fetching optional product name from OpenFoodFacts...'
                       : didProductContextLookupFail && normalizedInitialProductName.length === 0
                         ? 'Could not verify an existing product name right now. You can still save and validation will run during save.'
                       : productNameWasMissing
@@ -506,7 +567,7 @@ export function AddEditPriceFeatureScreen() {
                   keyboardType="decimal-pad"
                   autoCapitalize="none"
                   placeholder="0.00"
-                  helperText="Enter a local store price in dollars."
+                  helperText="Enter a local store price in Php."
                   testID="add-price-value-input"
                 />
 
@@ -557,6 +618,15 @@ const styles = StyleSheet.create({
   formStack: {
     marginTop: spacing.md,
     gap: spacing.sm,
+  },
+  productNameLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: -4,
+  },
+  fetchingLabel: {
+    fontStyle: 'italic',
   },
   actionsRow: {
     marginTop: spacing.xs,

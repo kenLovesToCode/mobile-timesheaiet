@@ -1,25 +1,30 @@
-import { ScrollView, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from 'tamagui';
+import { ScrollView, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useTheme } from "tamagui";
 
-import { spacing } from '../../theme/tokens';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { ListRow } from '../ui/list-row';
-import { Surface } from '../ui/surface';
-import { Text } from '../ui/text';
+import { spacing } from "../../theme/tokens";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { ListRow } from "../ui/list-row";
+import { Surface } from "../ui/surface";
+import { Text } from "../ui/text";
 
 type PlaceholderScreenProps = {
   title: string;
   description: string;
 };
 
-export function PlaceholderScreen({ title, description }: PlaceholderScreenProps) {
+export function PlaceholderScreen({
+  title,
+  description,
+}: PlaceholderScreenProps) {
   const theme = useTheme();
+
+  const result = {};
 
   return (
     <SafeAreaView
-      edges={['top', 'bottom', 'left', 'right']}
+      edges={["top", "bottom", "left", "right"]}
       style={{ flex: 1, backgroundColor: theme.background?.val }}
     >
       <ScrollView
@@ -34,15 +39,26 @@ export function PlaceholderScreen({ title, description }: PlaceholderScreenProps
             <Text variant="body" selectable style={{ marginTop: spacing.xs }}>
               {description}
             </Text>
-            <Text variant="footnote" tone="secondary" selectable style={{ marginTop: spacing.xs }}>
-              Placeholder scaffold for Story 1.5. Feature behavior arrives in later stories.
+            <Text
+              variant="footnote"
+              tone="secondary"
+              selectable
+              style={{ marginTop: spacing.xs }}
+            >
+              Placeholder scaffold for Story 1.5. Feature behavior arrives in
+              later stories.
             </Text>
           </Surface>
 
           <Surface variant="subtle">
             <Text variant="headline">UI system proof</Text>
-            <Text variant="footnote" tone="secondary" style={{ marginTop: spacing.xs }}>
-              Shared primitives validate token-driven styling consistency across placeholder routes.
+            <Text
+              variant="footnote"
+              tone="secondary"
+              style={{ marginTop: spacing.xs }}
+            >
+              Shared primitives validate token-driven styling consistency across
+              placeholder routes.
             </Text>
 
             <View style={{ marginTop: spacing.md, gap: spacing.sm }}>

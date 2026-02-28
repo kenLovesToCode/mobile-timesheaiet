@@ -1,9 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,22 +12,18 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from 'tamagui';
 
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
 import { ListRow } from '../../components/ui/list-row';
 import { Surface } from '../../components/ui/surface';
 import { Text } from '../../components/ui/text';
 import {
   getResultsByBarcodeAcrossActiveStores,
+  saveProductNameByBarcode,
   type ResultsLookupRecord,
   type ResultsStorePriceRow,
 } from '../../db/repositories/pricing-repository';
-import { addOrIncrementShoppingListItem } from '../../db/repositories/shopping-list-repository';
-import {
-  ShoppingListValidationError,
-  SHOPPING_LIST_QUANTITY_MAX,
-} from '../../db/validation/shopping-list';
 import { recordCompletedScanToResults } from '../scan/scan-performance';
 import { guardResultsRouteContext } from '../scan/guards/route-context-guard';
+import { fetchOpenFoodFactsProductName } from '../pricing/open-food-facts';
 import { recordCompletedResultsRefreshMeasurement } from './results-refresh-performance';
 import { spacing } from '../../theme/tokens';
 
@@ -44,10 +38,9 @@ type ResultsScreenState =
   | { status: 'ready'; data: ResultsLookupRecord };
 
 type FrameHandle = ReturnType<typeof setTimeout>;
-const ADD_TO_LIST_SUCCESS_DURATION_MS = 2000;
 
 function formatPriceCents(priceCents: number): string {
-  return `$${(priceCents / 100).toFixed(2)}`;
+  return `₱${(priceCents / 100).toFixed(2)}`;
 }
 
 function formatCapturedAt(timestamp: number | null): string | undefined {
@@ -97,18 +90,15 @@ export function ResultsFeatureScreen() {
   const [screenState, setScreenState] = useState<ResultsScreenState>({ status: 'loading' });
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshErrorMessage, setRefreshErrorMessage] = useState<string | null>(null);
-  const [quantitySheetOpen, setQuantitySheetOpen] = useState(false);
-  const [quantityInput, setQuantityInput] = useState('1');
-  const [addToListError, setAddToListError] = useState<string | null>(null);
-  const [addToListSuccess, setAddToListSuccess] = useState<string | null>(null);
-  const [isAddingToList, setIsAddingToList] = useState(false);
+  const [storePickerOpen, setStorePickerOpen] = useState(false);
+  const [isResolvingOnlineProductName, setIsResolvingOnlineProductName] = useState(false);
   const latestRequestIdRef = useRef(0);
   const latestReadyBarcodeRef = useRef<string | null>(null);
   const focusedBarcodeRef = useRef<string | null>(null);
+  const onlineLookupInFlightBarcodeRef = useRef<string | null>(null);
   const isFocusedRef = useRef(false);
   const rowNavigationLatchRef = useRef<{ storeId: number; atMs: number } | null>(null);
   const scanPerformanceFrameRef = useRef<FrameHandle | null>(null);
-  const addToListMessageTimerRef = useRef<FrameHandle | null>(null);
 
   const navigateToScanGuardTarget = useCallback(() => {
     if (typeof router.replace === 'function') {
@@ -161,99 +151,6 @@ export function ResultsFeatureScreen() {
       navigateToScanGuardTarget();
     }
   }, [routeGuard.decision, redirectTarget, navigateToScanGuardTarget]);
-
-  useEffect(() => {
-    return () => {
-      cancelScheduled(addToListMessageTimerRef.current);
-      addToListMessageTimerRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    resetAddToListFeedback();
-  }, [barcode]);
-
-  function resetAddToListFeedback() {
-    setAddToListError(null);
-    setAddToListSuccess(null);
-    cancelScheduled(addToListMessageTimerRef.current);
-    addToListMessageTimerRef.current = null;
-  }
-
-  function scheduleAddToListMessageClear() {
-    cancelScheduled(addToListMessageTimerRef.current);
-    addToListMessageTimerRef.current = setTimeout(() => {
-      setAddToListSuccess(null);
-      addToListMessageTimerRef.current = null;
-    }, ADD_TO_LIST_SUCCESS_DURATION_MS);
-  }
-
-  function openQuantitySheet() {
-    setQuantitySheetOpen(true);
-    setQuantityInput('1');
-    resetAddToListFeedback();
-  }
-
-  function closeQuantitySheet() {
-    setQuantitySheetOpen(false);
-    setAddToListError(null);
-  }
-
-  function parseQuantityInput(value: string): { quantity?: number; error?: string } {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return { error: 'Quantity is required.' };
-    }
-    if (!/^\d+$/.test(trimmed)) {
-      return { error: 'Enter a whole number.' };
-    }
-    const quantity = Number.parseInt(trimmed, 10);
-    if (!Number.isFinite(quantity) || quantity < 1) {
-      return { error: 'Quantity must be at least 1.' };
-    }
-    if (quantity > SHOPPING_LIST_QUANTITY_MAX) {
-      return { error: 'Quantity is too large.' };
-    }
-    return { quantity };
-  }
-
-  async function handleAddToList() {
-    if (!barcode || isAddingToList) {
-      return;
-    }
-
-    const parsed = parseQuantityInput(quantityInput);
-    if (!parsed.quantity) {
-      setAddToListError(parsed.error ?? 'Enter a valid quantity.');
-      return;
-    }
-
-    setIsAddingToList(true);
-    resetAddToListFeedback();
-
-    try {
-      await addOrIncrementShoppingListItem({
-        barcode,
-        quantity: parsed.quantity,
-        productName:
-          screenState.status === 'ready' && screenState.data.productName
-            ? screenState.data.productName
-            : undefined,
-      });
-      setQuantitySheetOpen(false);
-      setAddToListSuccess('Added to Shopping List.');
-      scheduleAddToListMessageClear();
-    } catch (error) {
-      if (error instanceof ShoppingListValidationError) {
-        setAddToListError(error.message);
-      } else {
-        console.error('[results] Failed to add to shopping list', error);
-        setAddToListError('Could not add to Shopping List right now.');
-      }
-    } finally {
-      setIsAddingToList(false);
-    }
-  }
 
   const loadResults = useCallback(async () => {
     if (!barcode) {
@@ -330,6 +227,77 @@ export function ResultsFeatureScreen() {
     };
   }, [screenState, source]);
 
+  useEffect(() => {
+    if (screenState.status !== 'ready') {
+      return;
+    }
+
+    const currentBarcode = screenState.data.barcode;
+    const hasProductName = (screenState.data.productName ?? '').trim().length > 0;
+
+    if (hasProductName) {
+      setIsResolvingOnlineProductName(false);
+      return;
+    }
+
+    if (onlineLookupInFlightBarcodeRef.current === currentBarcode) {
+      return;
+    }
+
+    let isMounted = true;
+    onlineLookupInFlightBarcodeRef.current = currentBarcode;
+    setIsResolvingOnlineProductName(true);
+
+    void fetchOpenFoodFactsProductName(currentBarcode)
+      .then((remoteName) => {
+        if (!isMounted || !remoteName) {
+          return;
+        }
+
+        setScreenState((prev) => {
+          if (prev.status !== 'ready' || prev.data.barcode !== currentBarcode) {
+            return prev;
+          }
+          if ((prev.data.productName ?? '').trim().length > 0) {
+            return prev;
+          }
+
+          return {
+            status: 'ready',
+            data: {
+              ...prev.data,
+              productName: remoteName,
+            },
+          };
+        });
+
+        void saveProductNameByBarcode({ barcode: currentBarcode, productName: remoteName }).catch(
+          (error) => {
+            console.error('[results] Failed to cache online product name', error);
+          }
+        );
+      })
+      .catch((error) => {
+        if (!isMounted) {
+          return;
+        }
+        console.error('[results] Optional online product lookup failed', error);
+      })
+      .finally(() => {
+        if (!isMounted) {
+          return;
+        }
+        if (onlineLookupInFlightBarcodeRef.current === currentBarcode) {
+          onlineLookupInFlightBarcodeRef.current = null;
+        }
+        setIsResolvingOnlineProductName(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [screenState]);
+
   useFocusEffect(
     useCallback(() => {
       if (routeGuard.decision !== 'allow') {
@@ -348,6 +316,8 @@ export function ResultsFeatureScreen() {
   );
 
   useEffect(() => {
+    setStorePickerOpen(false);
+
     if (!isFocusedRef.current) {
       focusedBarcodeRef.current = barcode ?? null;
       return;
@@ -361,6 +331,22 @@ export function ResultsFeatureScreen() {
     focusedBarcodeRef.current = currentBarcode;
     void loadResults();
   }, [barcode, loadResults]);
+
+  function openStorePicker() {
+    if (screenState.status !== 'ready' || sortedStores.length === 0) {
+      return;
+    }
+    setStorePickerOpen(true);
+  }
+
+  function closeStorePicker() {
+    setStorePickerOpen(false);
+  }
+
+  function handleSelectStoreForAdd(row: ResultsStorePriceRow) {
+    setStorePickerOpen(false);
+    openAddEditFlow(row);
+  }
 
   function openAddEditFlow(row: ResultsStorePriceRow) {
     if (!barcode) {
@@ -416,7 +402,14 @@ export function ResultsFeatureScreen() {
               style={styles.identityStack}
             >
               {productNameDisplay ? (
-                <Text variant="headline">{productNameDisplay}</Text>
+                <View style={styles.productNameRow}>
+                  <Text variant="headline" style={styles.productNameText}>
+                    {productNameDisplay}
+                  </Text>
+                  {isResolvingOnlineProductName ? (
+                    <ActivityIndicator size="small" accessibilityLabel="Loading product name" />
+                  ) : null}
+                </View>
               ) : null}
               <Text variant="footnote" tone="secondary">
                 Barcode: {barcode ?? 'Not provided'}
@@ -430,95 +423,74 @@ export function ResultsFeatureScreen() {
 
             <View style={styles.addToListStack}>
               <Button
-                accessibilityLabel="Add item to shopping list"
-                disabled={!barcode || isAddingToList || screenState.status !== 'ready'}
-                onPress={openQuantitySheet}
-                testID="results-add-to-list-button"
+                accessibilityLabel="Add product price"
+                disabled={!barcode || screenState.status !== 'ready' || sortedStores.length === 0}
+                onPress={openStorePicker}
+                testID="results-add-product-button"
               >
-                Add to List
+                Add Product
               </Button>
-              {addToListSuccess ? (
-                <Text
-                  variant="caption"
-                  tone="success"
-                  testID="results-add-to-list-success"
-                >
-                  {addToListSuccess}
-                </Text>
-              ) : null}
             </View>
           </Surface>
 
-          {quantitySheetOpen ? (
+          {storePickerOpen ? (
             <Modal
               animationType="slide"
               transparent
-              onRequestClose={closeQuantitySheet}
-              visible={quantitySheetOpen}
+              onRequestClose={closeStorePicker}
+              visible={storePickerOpen}
             >
-              <View style={styles.sheetOverlay} testID="results-quantity-sheet">
+              <View style={styles.sheetOverlay} testID="results-store-picker-sheet">
                 <Pressable
-                  accessibilityLabel="Close quantity sheet"
-                  onPress={closeQuantitySheet}
+                  accessibilityLabel="Close store picker"
+                  onPress={closeStorePicker}
                   style={styles.sheetBackdrop}
-                  testID="results-quantity-backdrop"
+                  testID="results-store-picker-backdrop"
                 />
-                <KeyboardAvoidingView
-                  behavior={Platform.select({ ios: 'padding', default: undefined })}
+                <View
+                  style={[
+                    styles.sheetContainer,
+                    { paddingBottom: Math.max(spacing.md, insets.bottom) },
+                  ]}
                 >
-                  <View
-                    style={[
-                      styles.sheetContainer,
-                      { paddingBottom: Math.max(spacing.md, insets.bottom) },
-                    ]}
-                  >
-                    <Surface variant="subtle" style={styles.quantitySheet}>
-                      <Text variant="headline">Choose quantity</Text>
-                      <Text variant="caption" tone="secondary">
-                        Set how many you want to track in your list.
-                      </Text>
-                      <View style={styles.quantityForm}>
-                        <Input
-                          label="Quantity"
-                          value={quantityInput}
-                          onChangeText={setQuantityInput}
-                          keyboardType="number-pad"
-                          autoCapitalize="none"
-                          helperText="Whole numbers only."
-                          testID="results-quantity-input"
-                        />
-                        {addToListError ? (
-                          <Text
-                            variant="footnote"
-                            tone="danger"
-                            testID="results-add-to-list-error"
-                          >
-                            {addToListError}
-                          </Text>
-                        ) : null}
-                        <View style={styles.quantityActions}>
-                          <Button
-                            variant="secondary"
-                            disabled={isAddingToList}
-                            accessibilityLabel="Cancel add to list"
-                            onPress={closeQuantitySheet}
-                            testID="results-quantity-cancel"
-                          >
-                            Cancel
-                          </Button>
-                          <Button
-                            disabled={isAddingToList}
-                            accessibilityLabel="Save shopping list quantity"
-                            onPress={() => void handleAddToList()}
-                            testID="results-quantity-save"
-                          >
-                            Save to List
-                          </Button>
-                        </View>
-                      </View>
-                    </Surface>
-                  </View>
-                </KeyboardAvoidingView>
+                  <Surface variant="subtle" style={styles.storePickerSheet}>
+                    <Text variant="headline">Select store</Text>
+                    <Text variant="caption" tone="secondary">
+                      Choose where to add or update this product price.
+                    </Text>
+                    <ScrollView style={styles.storePickerList} contentContainerStyle={styles.listStack}>
+                      {sortedStores.map((row) => {
+                        const hasPrice = row.priceCents != null;
+
+                        return (
+                          <ListRow
+                            key={`picker-${row.storeId}`}
+                            title={row.storeName}
+                            subtitle={hasPrice ? 'Edit existing price' : 'Add new price'}
+                            stateLabel={
+                              hasPrice && row.priceCents != null
+                                ? formatPriceCents(row.priceCents)
+                                : 'Missing'
+                            }
+                            tone={hasPrice ? 'neutral' : 'missing'}
+                            onPress={() => handleSelectStoreForAdd(row)}
+                            testID={`results-store-picker-row-${row.storeId}`}
+                          />
+                        );
+                      })}
+                    </ScrollView>
+                    <View style={styles.sheetActions}>
+                      <Button
+                        variant="secondary"
+                        accessibilityLabel="Cancel store picker"
+                        onPress={closeStorePicker}
+                        testID="results-store-picker-cancel"
+                      >
+                        Cancel
+                      </Button>
+                    </View>
+                  </Surface>
+                </View>
               </View>
             </Modal>
           ) : null}
@@ -660,6 +632,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     gap: spacing.xxs,
   },
+  productNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  productNameText: {
+    flexShrink: 1,
+  },
   addToListStack: {
     marginTop: spacing.md,
     gap: spacing.xs,
@@ -676,14 +656,13 @@ const styles = StyleSheet.create({
   sheetContainer: {
     padding: spacing.md,
   },
-  quantitySheet: {
+  storePickerSheet: {
     gap: spacing.sm,
   },
-  quantityForm: {
-    marginTop: spacing.sm,
-    gap: spacing.sm,
+  storePickerList: {
+    maxHeight: 320,
   },
-  quantityActions: {
+  sheetActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-end',

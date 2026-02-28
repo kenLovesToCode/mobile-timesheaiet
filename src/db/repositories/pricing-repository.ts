@@ -236,3 +236,34 @@ export async function getProductByBarcode(input: unknown): Promise<ProductLookup
 
   return productRows[0] ?? null;
 }
+
+export async function saveProductNameByBarcode(input: {
+  barcode: string;
+  productName: string;
+}): Promise<void> {
+  const payload = parseResultsLookupInput({ barcode: input.barcode });
+  const normalizedName = normalizeOptionalName(input.productName);
+  if (!normalizedName) {
+    return;
+  }
+
+  const now = Date.now();
+
+  await db
+    .insert(products)
+    .values({
+      barcode: payload.barcode,
+      name: normalizedName,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: products.barcode,
+      set: {
+        name: normalizedName,
+        isActive: true,
+        updatedAt: now,
+      },
+    });
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -22,6 +22,7 @@ import {
   type ProductListItem,
 } from '../../db/repositories/product-repository';
 import {
+  getProductByBarcode,
   getResultsByBarcodeAcrossActiveStores,
   saveStorePrice,
 } from '../../db/repositories/pricing-repository';
@@ -34,6 +35,7 @@ import {
 } from '../scan/permissions/camera-permission';
 import { ScanCamera } from '../scan/scan-camera';
 import { normalizeBarcodeValue } from '../scan/scan-barcode';
+import { fetchOpenFoodFactsProductName } from '../pricing/open-food-facts';
 import { spacing } from '../../theme/tokens';
 
 type CameraPermissionState =
@@ -46,6 +48,10 @@ type CameraPermissionState =
 
 type ProductSheetMode = 'add' | 'edit' | null;
 type BarcodeScanTarget = 'add' | 'edit';
+const MAX_VISIBLE_PRODUCTS = 15;
+const PRODUCT_ROW_HEIGHT = 40;
+const PRODUCT_LIST_VIEWPORT_MAX_HEIGHT =
+  MAX_VISIBLE_PRODUCTS * PRODUCT_ROW_HEIGHT + (MAX_VISIBLE_PRODUCTS - 1) * 3;
 
 function formatCentsForInput(priceCents: number | null): string {
   if (priceCents == null || Number.isNaN(priceCents)) {
@@ -90,6 +96,7 @@ export function ProductsFeatureScreen() {
   const [selectedAddStoreId, setSelectedAddStoreId] = useState<number | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [isFetchingOnlineAddName, setIsFetchingOnlineAddName] = useState(false);
 
   const [editingBarcode, setEditingBarcode] = useState<string | null>(null);
   const [editBarcode, setEditBarcode] = useState('');
@@ -100,13 +107,17 @@ export function ProductsFeatureScreen() {
   const [editError, setEditError] = useState<string | null>(null);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isPreparingEditSheet, setIsPreparingEditSheet] = useState(false);
+  const [isFetchingOnlineEditName, setIsFetchingOnlineEditName] = useState(false);
 
   const [busyBarcode, setBusyBarcode] = useState<string | null>(null);
   const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
   const [barcodeScanTarget, setBarcodeScanTarget] = useState<BarcodeScanTarget>('add');
+  const [isScannerTorchEnabled, setIsScannerTorchEnabled] = useState(false);
   const [scannerPermissionState, setScannerPermissionState] = useState<CameraPermissionState>({
     status: 'loading',
   });
+  const addNameEditedRef = useRef(false);
+  const editNameEditedRef = useRef(false);
 
   const activeStores = useMemo(() => stores.filter((store) => store.isActive), [stores]);
 
@@ -152,18 +163,21 @@ export function ProductsFeatureScreen() {
 
   const openAddBarcodeScanner = useCallback(() => {
     setBarcodeScanTarget('add');
+    setIsScannerTorchEnabled(false);
     setIsBarcodeScannerOpen(true);
     void loadScannerPermissionState();
   }, [loadScannerPermissionState]);
 
   const openEditBarcodeScanner = useCallback(() => {
     setBarcodeScanTarget('edit');
+    setIsScannerTorchEnabled(false);
     setIsBarcodeScannerOpen(true);
     void loadScannerPermissionState();
   }, [loadScannerPermissionState]);
 
   const closeBarcodeScanner = useCallback(() => {
     setIsBarcodeScannerOpen(false);
+    setIsScannerTorchEnabled(false);
   }, []);
 
   const handleScannerBarcodeScanned = useCallback(
@@ -175,8 +189,12 @@ export function ProductsFeatureScreen() {
       }
 
       if (barcodeScanTarget === 'edit') {
+        editNameEditedRef.current = false;
+        setEditName('');
         setEditBarcode(barcode);
       } else {
+        addNameEditedRef.current = false;
+        setAddName('');
         setAddBarcode(barcode);
       }
       closeBarcodeScanner();
@@ -190,11 +208,15 @@ export function ProductsFeatureScreen() {
     setAddPriceInput('');
     setAddError(null);
     setIsBarcodeScannerOpen(false);
+    setIsScannerTorchEnabled(false);
+    setIsFetchingOnlineAddName(false);
+    addNameEditedRef.current = false;
   }
 
   function closeSheet() {
     setSheetMode(null);
     setIsBarcodeScannerOpen(false);
+    setIsScannerTorchEnabled(false);
 
     if (sheetMode === 'edit') {
       setEditingBarcode(null);
@@ -204,6 +226,8 @@ export function ProductsFeatureScreen() {
       setEditPriceByStoreId({});
       setEditError(null);
       setIsPreparingEditSheet(false);
+      setIsFetchingOnlineEditName(false);
+      editNameEditedRef.current = false;
       return;
     }
 
@@ -265,6 +289,28 @@ export function ProductsFeatureScreen() {
     setSheetMode('add');
   }
 
+  function handleAddNameChange(nextValue: string) {
+    addNameEditedRef.current = true;
+    setAddName(nextValue);
+  }
+
+  function handleAddBarcodeChange(nextValue: string) {
+    addNameEditedRef.current = false;
+    setAddName('');
+    setAddBarcode(nextValue);
+  }
+
+  function handleEditNameChange(nextValue: string) {
+    editNameEditedRef.current = true;
+    setEditName(nextValue);
+  }
+
+  function handleEditBarcodeChange(nextValue: string) {
+    editNameEditedRef.current = false;
+    setEditName('');
+    setEditBarcode(nextValue);
+  }
+
   async function handleAddProduct() {
     if (isAddingProduct) {
       return;
@@ -315,6 +361,8 @@ export function ProductsFeatureScreen() {
     setEditingBarcode(product.barcode);
     setEditBarcode(product.barcode);
     setEditName(product.name ?? '');
+    editNameEditedRef.current = false;
+    setIsFetchingOnlineEditName(false);
     setEditError(null);
     setIsPreparingEditSheet(true);
 
@@ -426,6 +474,176 @@ export function ProductsFeatureScreen() {
     }
   }
 
+  useEffect(() => {
+    let isMounted = true;
+
+    if (sheetMode !== 'add') {
+      setIsFetchingOnlineAddName(false);
+      return;
+    }
+
+    const normalizedBarcode = normalizeBarcodeValue(addBarcode);
+    if (!normalizedBarcode || normalizedBarcode.length < 6) {
+      setIsFetchingOnlineAddName(false);
+      return;
+    }
+
+    setIsFetchingOnlineAddName(false);
+    void Promise.resolve(getProductByBarcode({ barcode: normalizedBarcode }))
+      .then((product) => {
+        if (!isMounted) {
+          return;
+        }
+
+        const localName = typeof product?.name === 'string' ? product.name.trim() : '';
+        if (localName.length > 0) {
+          if (!addNameEditedRef.current) {
+            setAddName((currentValue) => {
+              if (addNameEditedRef.current || currentValue.trim() === localName) {
+                return currentValue;
+              }
+
+              return localName;
+            });
+          }
+          return;
+        }
+
+        setAddName('');
+
+        setIsFetchingOnlineAddName(true);
+        void fetchOpenFoodFactsProductName(normalizedBarcode)
+          .then((remoteName) => {
+            if (!isMounted) {
+              return;
+            }
+
+            if (!remoteName) {
+              setAddName('');
+              return;
+            }
+
+            if (addNameEditedRef.current) {
+              return;
+            }
+
+            setAddName((currentValue) => {
+              if (addNameEditedRef.current || currentValue.trim().length > 0) {
+                return currentValue;
+              }
+              return remoteName;
+            });
+          })
+          .catch((error) => {
+            if (!isMounted) {
+              return;
+            }
+            console.error('[products] Optional online product lookup failed (add)', error);
+          })
+          .finally(() => {
+            if (isMounted) {
+              setIsFetchingOnlineAddName(false);
+            }
+          });
+      })
+      .catch((error) => {
+        if (!isMounted) {
+          return;
+        }
+
+        console.error('[products] Failed to resolve local product name (add)', error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [addBarcode, sheetMode]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (sheetMode !== 'edit') {
+      setIsFetchingOnlineEditName(false);
+      return;
+    }
+
+    const normalizedBarcode = normalizeBarcodeValue(editBarcode);
+    if (!normalizedBarcode || normalizedBarcode.length < 6) {
+      setIsFetchingOnlineEditName(false);
+      return;
+    }
+
+    setIsFetchingOnlineEditName(false);
+    void Promise.resolve(getProductByBarcode({ barcode: normalizedBarcode }))
+      .then((product) => {
+        if (!isMounted) {
+          return;
+        }
+
+        const localName = typeof product?.name === 'string' ? product.name.trim() : '';
+        if (localName.length > 0) {
+          if (!editNameEditedRef.current) {
+            setEditName((currentValue) => {
+              if (editNameEditedRef.current || currentValue.trim() === localName) {
+                return currentValue;
+              }
+
+              return localName;
+            });
+          }
+          return;
+        }
+
+        setEditName('');
+
+        setIsFetchingOnlineEditName(true);
+        void fetchOpenFoodFactsProductName(normalizedBarcode)
+          .then((remoteName) => {
+            if (!isMounted) {
+              return;
+            }
+
+            if (!remoteName) {
+              setEditName('');
+              return;
+            }
+
+            if (editNameEditedRef.current) {
+              return;
+            }
+
+            setEditName((currentValue) => {
+              if (editNameEditedRef.current || currentValue.trim().length > 0) {
+                return currentValue;
+              }
+              return remoteName;
+            });
+          })
+          .catch((error) => {
+            if (!isMounted) {
+              return;
+            }
+            console.error('[products] Optional online product lookup failed (edit)', error);
+          })
+          .finally(() => {
+            if (isMounted) {
+              setIsFetchingOnlineEditName(false);
+            }
+          });
+      })
+      .catch((error) => {
+        if (!isMounted) {
+          return;
+        }
+
+        console.error('[products] Failed to resolve local product name (edit)', error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [editBarcode, sheetMode]);
+
   return (
     <SafeAreaView
       edges={['top', 'bottom', 'left', 'right']}
@@ -489,37 +707,43 @@ export function ProductsFeatureScreen() {
                 </Text>
               </View>
             ) : (
-              <View style={styles.listStack}>
-                {products.map((product) => {
-                  const title = product.name ?? 'Unnamed product';
-                  const isBusy = busyBarcode === product.barcode || isPreparingEditSheet;
+              <View style={styles.listViewport}>
+                <ScrollView
+                  nestedScrollEnabled
+                  contentContainerStyle={styles.listStack}
+                  showsVerticalScrollIndicator={products.length > MAX_VISIBLE_PRODUCTS}
+                >
+                  {products.map((product) => {
+                    const title = product.name ?? 'Unnamed product';
+                    const isBusy = busyBarcode === product.barcode || isPreparingEditSheet;
 
-                  return (
-                    <Pressable
-                      key={product.barcode}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${title}, barcode ${product.barcode}. Tap to edit.`}
-                      disabled={isBusy}
-                      onPress={() => void startEditing(product)}
-                      testID={`product-row-${product.barcode}`}
-                      style={({ pressed }) => [
-                        styles.productRow,
-                        {
-                          backgroundColor: theme.surface?.val ?? theme.background?.val,
-                          borderColor: theme.borderColor?.val,
-                          opacity: isBusy ? 0.6 : pressed ? 0.88 : 1,
-                        },
-                      ]}
-                    >
-                      <Text variant="footnote" style={styles.productRowName} numberOfLines={1}>
-                        {title}
-                      </Text>
-                      <Text variant="caption" tone="secondary" style={styles.productRowBarcode} numberOfLines={1}>
-                        {product.barcode}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+                    return (
+                      <Pressable
+                        key={product.barcode}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${title}, barcode ${product.barcode}. Tap to edit.`}
+                        disabled={isBusy}
+                        onPress={() => void startEditing(product)}
+                        testID={`product-row-${product.barcode}`}
+                        style={({ pressed }) => [
+                          styles.productRow,
+                          {
+                            backgroundColor: theme.surface?.val ?? theme.background?.val,
+                            borderColor: theme.borderColor?.val,
+                            opacity: isBusy ? 0.6 : pressed ? 0.88 : 1,
+                          },
+                        ]}
+                      >
+                        <Text variant="footnote" style={styles.productRowName} numberOfLines={1}>
+                          {title}
+                        </Text>
+                        <Text variant="caption" tone="secondary" style={styles.productRowBarcode} numberOfLines={1}>
+                          {product.barcode}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
               </View>
             )}
           </Surface>
@@ -556,7 +780,7 @@ export function ProductsFeatureScreen() {
                     <View style={styles.barcodeInputWrap}>
                       <Input
                         value={addBarcode}
-                        onChangeText={setAddBarcode}
+                        onChangeText={handleAddBarcodeChange}
                         placeholder="UPC/EAN"
                         keyboardType="number-pad"
                         autoCapitalize="none"
@@ -647,12 +871,19 @@ export function ProductsFeatureScreen() {
                     {scannerPermissionState.status === 'ready' ? (
                       <ScanCamera
                         isActive
-                        enableTorch={false}
+                        enableTorch={isScannerTorchEnabled}
                         onBarcodeScanned={handleScannerBarcodeScanned}
                       />
                     ) : null}
 
                     <View style={styles.scannerActions}>
+                      <Button
+                        variant={isScannerTorchEnabled ? 'primary' : 'secondary'}
+                        onPress={() => setIsScannerTorchEnabled((prev) => !prev)}
+                        testID="products-add-barcode-scan-torch-toggle"
+                      >
+                        {isScannerTorchEnabled ? 'Torch On' : 'Torch Off'}
+                      </Button>
                       <Button
                         variant="secondary"
                         onPress={closeBarcodeScanner}
@@ -664,13 +895,23 @@ export function ProductsFeatureScreen() {
                   </Surface>
                 ) : null}
 
+                <View style={styles.productNameLabelRow}>
+                  <Text variant="footnote" tone="secondary">
+                    Product name
+                  </Text>
+                  {isFetchingOnlineAddName ? (
+                    <Text variant="caption" tone="secondary" style={styles.fetchingLabel}>
+                      fetching...
+                    </Text>
+                  ) : null}
+                </View>
                 <Input
-                  label="Product name"
                   value={addName}
-                  onChangeText={setAddName}
+                  onChangeText={handleAddNameChange}
                   placeholder="e.g. Greek Yogurt"
                   autoCapitalize="words"
                   returnKeyType="next"
+                  rightAccessory={isFetchingOnlineAddName ? <ActivityIndicator size="small" /> : null}
                   testID="products-add-name-input"
                 />
                 <Input
@@ -680,7 +921,7 @@ export function ProductsFeatureScreen() {
                   placeholder="0.00"
                   keyboardType="decimal-pad"
                   autoCapitalize="none"
-                  helperText="Enter a local store price in dollars."
+                  helperText="Enter a local store price in Php."
                   testID="products-add-price-input"
                 />
 
@@ -785,7 +1026,7 @@ export function ProductsFeatureScreen() {
                         <View style={styles.barcodeInputWrap}>
                           <Input
                             value={editBarcode}
-                            onChangeText={setEditBarcode}
+                            onChangeText={handleEditBarcodeChange}
                             placeholder="UPC/EAN"
                             keyboardType="number-pad"
                             autoCapitalize="none"
@@ -875,12 +1116,19 @@ export function ProductsFeatureScreen() {
                         {scannerPermissionState.status === 'ready' ? (
                           <ScanCamera
                             isActive
-                            enableTorch={false}
+                            enableTorch={isScannerTorchEnabled}
                             onBarcodeScanned={handleScannerBarcodeScanned}
                           />
                         ) : null}
 
                         <View style={styles.scannerActions}>
+                          <Button
+                            variant={isScannerTorchEnabled ? 'primary' : 'secondary'}
+                            onPress={() => setIsScannerTorchEnabled((prev) => !prev)}
+                            testID="products-edit-barcode-scan-torch-toggle"
+                          >
+                            {isScannerTorchEnabled ? 'Torch On' : 'Torch Off'}
+                          </Button>
                           <Button
                             variant="secondary"
                             onPress={closeBarcodeScanner}
@@ -891,11 +1139,23 @@ export function ProductsFeatureScreen() {
                         </View>
                       </Surface>
                     ) : null}
+                    <View style={styles.productNameLabelRow}>
+                      <Text variant="footnote" tone="secondary">
+                        Product name
+                      </Text>
+                      {isFetchingOnlineEditName ? (
+                        <Text variant="caption" tone="secondary" style={styles.fetchingLabel}>
+                          fetching...
+                        </Text>
+                      ) : null}
+                    </View>
                     <Input
-                      label="Product name"
                       value={editName}
-                      onChangeText={setEditName}
+                      onChangeText={handleEditNameChange}
                       autoCapitalize="words"
+                      rightAccessory={
+                        isFetchingOnlineEditName ? <ActivityIndicator size="small" /> : null
+                      }
                       testID="products-edit-name-input"
                     />
                     <Input
@@ -905,7 +1165,7 @@ export function ProductsFeatureScreen() {
                       keyboardType="decimal-pad"
                       autoCapitalize="none"
                       placeholder="0.00"
-                      helperText="Enter a local store price in dollars."
+                      helperText="Enter a local store price in Php."
                       testID="products-edit-price-input"
                     />
 
@@ -1018,6 +1278,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     gap: 3,
   },
+  listViewport: {
+    maxHeight: PRODUCT_LIST_VIEWPORT_MAX_HEIGHT,
+  },
   productRow: {
     minHeight: 40,
     borderWidth: 1,
@@ -1072,6 +1335,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     alignItems: 'center',
   },
+  productNameLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fetchingLabel: {
+    fontStyle: 'italic',
+  },
   scanTriggerRow: {
     alignItems: 'center',
   },
@@ -1087,6 +1358,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   scannerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.sm,
     alignItems: 'flex-end',
   },
   feedbackText: {
